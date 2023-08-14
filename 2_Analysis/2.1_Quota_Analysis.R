@@ -88,7 +88,7 @@ Quota_Purpose_sum <- Quota_clean_raw %>% group_by(Purpose) %>% tally() %>%
                           Purpose_label != "ALL" & Purpose_label != "None" ~ "Other"))
 
 ## Plotting
-Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = None)) +
+Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = Type)) +
   geom_col() +
   scale_x_discrete(limits = c("None", "Purpose", "Source", "Term",
                               "Purpose-Source", "Term-Source", "Term-Purpose",
@@ -138,7 +138,10 @@ Summary_plt <- ggarrange(Type_plt, labels = c("A.", "B."),
 ggsave(path = "Outputs/Figures", Summary_plt, filename = "Summary_plt.png",  bg = "white",
        device = "png", width = 20, height = 20, units = "cm")
 
-
+write.csv(Quota_Purpose_sum, "Outputs/Summary/F1/Quota_Purpose_sum.csv")
+write.csv(Quota_Source_sum, "Outputs/Summary/F1/Quota_Source_sum.csv")
+write.csv(Quota_Term_sum, "Outputs/Summary/F1/Quota_Term_sum.csv")
+write.csv(Quota_types_sum, "Outputs/Summary/F1/Quota_Types_sum.csv")
 
 #### Quota compliance ####
 
@@ -276,6 +279,12 @@ Quota_ban_arrange <- ggarrange(ggarrange(ban_map_plt, quota_map_plt, banbreach_m
 ggsave(path = "Outputs/Figures", Quota_ban_arrange, filename = "Quota_ban_plt.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
+write.csv(Quota_df, "Outputs/Summary/F2/Quota_df.csv")
+write.csv(select(Quota_map_df, -geometry), "Outputs/Summary/F2/Quota_map_df.csv")
+write.csv(select(Quotabreach_map_df, -geometry), "Outputs/Summary/F2/Quotabreach_map_df.csv")
+write.csv(select(Ban_map_df, -geometry), "Outputs/Summary/F2/Ban_map_df.csv")
+write.csv(select(Banbreach_map_df, -geometry), "Outputs/Summary/F2/Banbreach_map_df.csv")
+
 
 #### Modelling before after quota ####
 
@@ -367,16 +376,6 @@ Centred_series_quota <- Centred_series %>% filter(State == "bPost-quota-actual")
          vol_sd = Vol_cent/sd,
          Year_cent = Year - Last_noquota_year)
 
-ggplot(Centred_series_quota, aes(Year_cent, vol_sd, colour = State)) +
-  geom_point() +
-  facet_wrap(~Taxon, scales = "free")
-
-
-ggplot(Centred_series, aes(Year_cent, Total_volume, colour = Quota_in_place)) +
-  geom_point() +
-  geom_line(aes(y = Quota), colour = "black") +
-  facet_wrap(~Taxon, scales = "free")
-
 
 library(tidybayes)
 library(brms)
@@ -408,7 +407,7 @@ PP_mod_sum <- Centred_series_sd %>%
   add_epred_draws(Pre_Post_Quota_mod, re_formula = NULL)
 
 PP_lines_sum <- PP_mod_sum  %>% 
-  group_by(Year_cent, vol_sd,Taxon_exp,  Taxon, Exporter, State, Quota, sd, Quota_sd) %>%
+  group_by(Year_cent, vol_sd,Taxon_exp,  Taxon, Exporter, State, Quota, sd) %>%
   median_hdci(.epred, .width = .9) %>%
   unite("ID", c("Taxon_exp", "State"), remove = FALSE)
 
@@ -426,6 +425,13 @@ ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
 new_dat <- data.frame(Year_cent = c(-10:10, 1:10),
                       State = c(rep("aPre-quota", 11), rep("bPost-quota-actual", 10),
                                          rep("bPost-quota-quotas", 10)))
+
+fixf_coef_sum <- fixef(Pre_Post_Quota_mod, summary = FALSE) %>% as.data.frame() %>%
+  pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
+  group_by(coef) %>%
+  mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100)) %>%
+  group_by(coef, pd) %>%
+  median_hdci(val, .width = .9)
 
 Fixef_pred_sum <- new_dat %>% 
   add_epred_draws(Pre_Post_Quota_mod, re_formula = NA) %>% 
@@ -578,5 +584,10 @@ PP_quota_plt <- ggarrange(average_quota_plt,
 
 ggsave(path = "Outputs/Figures", PP_quota_plt, filename = "PP_quota.png",  bg = "white",
        device = "png", width = 25, height = 25, units = "cm")
+
+write.csv(Centred_series_sd, "Outputs/Summary/F3/Model_fitting_data.csv")
+write.csv(Trend_change_coef, "Outputs/Summary/F3/Trend_change_coef.csv")
+write.csv(Abs_change_coef, "Outputs/Summary/F3/Abs_change_coef.csv")
+write.csv(fixf_coef_sum, "Outputs/Summary/F3/fixf_coef_sum.csv")
 
 
