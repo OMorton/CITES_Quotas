@@ -46,6 +46,8 @@ Quota_clean_raw2 <- Quota_clean_raw %>% mutate(Party_for_join = case_when(grepl(
   left_join(Countries, by = c("ISO" = "iso_a2"))
 
 length(unique(Quota_trade_listing$Taxon)) ## 236
+length(unique(Quota_trade_listing$Exporter)) ## 29
+
 length(unique(Quota_clean_raw$FullName)) ## 351
 length(unique(Quota_clean_raw$party)) ## 70
 
@@ -279,6 +281,7 @@ Quota_ban_arrange <- ggarrange(ggarrange(ban_map_plt, quota_map_plt, banbreach_m
 ggsave(path = "Outputs/Figures", Quota_ban_arrange, filename = "Quota_ban_plt.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
+write.csv(Ban_df, "Outputs/Summary/F2/Ban_df.csv")
 write.csv(Quota_df, "Outputs/Summary/F2/Quota_df.csv")
 write.csv(select(Quota_map_df, -geometry), "Outputs/Summary/F2/Quota_map_df.csv")
 write.csv(select(Quotabreach_map_df, -geometry), "Outputs/Summary/F2/Quotabreach_map_df.csv")
@@ -355,12 +358,14 @@ rbind(T_Sp_combo, TS_Sp_combo) %>% group_by(Taxon, Exporter, Quota_type, Year) %
 
 Centred_series <- rbind(T_Sp_combo, TS_Sp_combo) %>% group_by(Taxon, Exporter, Quota_type, State) %>% 
   mutate(Last_noquota_year = ifelse(State == "aPre-quota" & Year == max(Year), Year, NA),
+         First_quota_year = ifelse(State == "bPost-quota-actual" & Year == min(Year), Year, NA),
          Last_noquota_volume = ifelse(State == "aPre-quota" & Year == max(Year), Total_volume, NA)) %>%
   group_by(Taxon, Exporter, Quota_type) %>%
   fill(Last_noquota_year, .direction = "updown") %>%
   fill(Last_noquota_volume, .direction = "updown") %>%
-  mutate(FYear = as.factor(Year),
-         sd = sd(Total_volume)) %>%
+  fill(First_quota_year, .direction = "updown") %>%
+  fill(First_quota_year, .direction = "updown") %>%
+  mutate(FYear = as.factor(Year)) %>%
   unite("Taxon_exp", c("Taxon", "Exporter"),  remove = FALSE)
 
 length(unique(Centred_series$Taxon)) ## 65
@@ -372,9 +377,14 @@ Centred_series_quota <- Centred_series %>% filter(State == "bPost-quota-actual")
   mutate(Total_volume = Quota, 
          State = "bPost-quota-quotas") %>%
   rbind(Centred_series) %>%
+  group_by(Taxon, Exporter) %>%
   mutate(Vol_cent = Total_volume - Last_noquota_volume,
-         vol_sd = Vol_cent/sd,
-         Year_cent = Year - Last_noquota_year)
+         vol_sd = Vol_cent/sd(Vol_cent),
+         Year_cent = Year - First_quota_year)
+
+ggplot(Centred_series_quota, aes(Year_cent, vol_sd, colour = State)) +
+  geom_point() +
+  facet_wrap(~Taxon, scales = "free")
 
 
 library(tidybayes)
@@ -382,10 +392,7 @@ library(brms)
 
 ## sd modelling
 Centred_series_sd <- Centred_series_quota %>% filter(!is.na(vol_sd), !is.infinite(vol_sd)) %>%
-  mutate(Quota_breach = ifelse(Total_volume > Quota, "Yes", "No")) %>%
-  ## remove this species as it was traded in frequently and in very low volumes
-  ## and then had very high quotas set (1800 sd away from the traded mean)
-  filter(Taxon_exp != "Pelusios castaneus_MZ")
+  mutate(Quota_breach = ifelse(Total_volume > Quota, "Yes", "No"))
 
 hist(Centred_series_sd$vol_sd)
 
@@ -399,7 +406,7 @@ Pre_Post_Quota_mod <- brm(bf(vol_sd ~ State + Year_cent + State:Year_cent + (1|E
                            prior(normal(0, 1), class = "Intercept"),
                            prior(normal(0, 1), class = "sd"),
                            prior(lkj(2), class = "cor")),
-                 file = "Outputs/Models/Pre_Post_Quota2.rds",
+                 file = "Outputs/Models/Pre_Post_Quotasd3.rds",
                  data = Centred_series_sd,
                  iter = 1000, warmup = 500, chains = 4, cores = 4)
 
@@ -422,9 +429,9 @@ ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
   theme_minimal() +
   theme(legend.position = "none")
 
-new_dat <- data.frame(Year_cent = c(-10:10, 1:10),
-                      State = c(rep("aPre-quota", 11), rep("bPost-quota-actual", 10),
-                                         rep("bPost-quota-quotas", 10)))
+new_dat <- data.frame(Year_cent = c(-10:10, 0:10),
+                      State = c(rep("aPre-quota", 10), rep("bPost-quota-actual", 11),
+                                         rep("bPost-quota-quotas", 11)))
 
 fixf_coef_sum <- fixef(Pre_Post_Quota_mod, summary = FALSE) %>% as.data.frame() %>%
   pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
@@ -448,8 +455,8 @@ average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred,
   scale_color_manual(values = c("black", "grey", "dodgerblue")) +
   scale_fill_manual(values = c("black", "grey", "dodgerblue")) +
   annotate(geom = "text", label = "Pre-quota", x = -5, y = 0.6, fontface = "bold", colour = "black") +
-  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =0.6, fontface = "bold", colour = "grey") +
-  annotate(geom = "text", label = "Post-quota quota levels", x = 5, y =3.5, fontface = "bold", colour = "dodgerblue") +
+  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =0.2, fontface = "bold", colour = "grey") +
+  annotate(geom = "text", label = "Post-quota quota levels", x = 5, y =1.7, fontface = "bold", colour = "dodgerblue") +
   theme_minimal() +
   theme(axis.title.y = element_markdown(), legend.position = "none")
   
@@ -507,8 +514,8 @@ abs_change_plt_Q <- ggplot(b1_quota, aes(reorder(Taxon, Order), coef,  colour = 
   geom_point() +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0) +
   geom_hline(yintercept = 0, linetype = "dashed") + 
-  scale_color_manual(values = c("royalblue4", "grey75", "tomato4" )) +
-  annotate(geom = "text", label = "Quota level", x = 2, y = 20, fontface = "bold", hjust = 0) +
+  scale_color_manual(values = c("royalblue4", "grey75", "coral", "tomato4" )) +
+  annotate(geom = "text", label = "Quota level", x = 2, y = 5, fontface = "bold", hjust = 0) +
   xlab("Quota (Taxon-exporter specific)") +
   ylab("Absolute change") +
   theme_minimal() +
@@ -518,7 +525,7 @@ abs_change_plt_A <- ggplot(b2_actual, aes(reorder(Taxon, Order), coef,  colour =
   geom_point() +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0) +
   geom_hline(yintercept = 0, linetype = "dashed") + 
-  scale_color_manual(values = c("royalblue4", "steelblue", "grey75", "coral", "tomato4" )) +
+  scale_color_manual(values = c("royalblue4", "grey75", "coral", "tomato4" )) +
   annotate(geom = "text", label = "Traded volume", x = 2, y = 2.2, fontface = "bold", hjust = 0) +
   xlab("Quota (Taxon-exporter specific)") +
   ylab("Absolute change") +
@@ -529,7 +536,7 @@ trend_change_plt_Q <- ggplot(b1_quota_trend, aes(reorder(Taxon, Order), coef,  c
   geom_point() +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0) +
   geom_hline(yintercept = 0, linetype = "dashed") + 
-  scale_color_manual(values = c("royalblue4", "steelblue", "grey75", "tomato4" )) +
+  scale_color_manual(values = c("royalblue4", "steelblue", "grey75","coral", "tomato4" )) +
   annotate(geom = "text", label = "Quota level", x = 2, y = 0.4, fontface = "bold", hjust = 0) +
   xlab("Quota (Taxon-exporter specific)") +
   ylab("Trend change") +
@@ -556,7 +563,7 @@ abs_concept_plt <- ggplot(abs_concept, aes(time, y, colour = period)) +
   geom_line(size = 1) +
   coord_cartesian(ylim = c(0, 10)) +
   scale_color_manual(values = c("royalblue4", "tomato4", "black")) +
-  geom_vline(xintercept = 5, linetype = "dashed") +
+  geom_vline(xintercept = 6, linetype = "dashed") +
   xlab("Time") + ylab("Volume") +
   theme_minimal() +
   theme(legend.position = "none", axis.text = element_blank())
@@ -565,7 +572,7 @@ trend_concept_plt <- ggplot(trend_concept, aes(time, y, colour = period)) +
   geom_line(size = 1) +
   coord_cartesian(ylim = c(0, 10)) +
   scale_color_manual(values = c("royalblue4", "tomato4", "black")) +
-  geom_vline(xintercept = 5, linetype = "dashed") +
+  geom_vline(xintercept = 6, linetype = "dashed") +
   xlab("Time") + ylab("Volume") +
   theme_minimal() +
   theme(legend.position = "none", axis.text = element_blank())
@@ -589,5 +596,6 @@ write.csv(Centred_series_sd, "Outputs/Summary/F3/Model_fitting_data.csv")
 write.csv(Trend_change_coef, "Outputs/Summary/F3/Trend_change_coef.csv")
 write.csv(Abs_change_coef, "Outputs/Summary/F3/Abs_change_coef.csv")
 write.csv(fixf_coef_sum, "Outputs/Summary/F3/fixf_coef_sum.csv")
+write.csv(Centred_series_sd, "Outputs/Summary/F3/fitting_data.csv")
 
 

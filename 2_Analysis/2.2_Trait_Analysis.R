@@ -96,7 +96,7 @@ ggplot(Quota_plus_IUCN_Traits, aes(Body_mass_g, Quota + 1)) +
   scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
-ggplot(y, aes(Max_longevity_d, Quota + 1)) +
+ggplot(Quota_plus_IUCN_Traits, aes(Max_longevity_d, Quota + 1)) +
   geom_point() +
   geom_smooth(method = "lm") +
   scale_x_log10() +
@@ -108,7 +108,7 @@ ggplot(Quota_plus_IUCN_Traits, aes(Litter_clutch_size, Quota + 1)) +
   #scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
-ggplot(y, aes(hab_breadth, Quota + 1)) +
+ggplot(Quota_plus_IUCN_Traits, aes(hab_breadth, Quota + 1)) +
   geom_point() +
   geom_smooth(method = "lm") +
   #scale_x_log10() +
@@ -141,6 +141,13 @@ cl_dat <- Quota_plus_IUCN_Traits %>%
 iucn_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(IUCN_code)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
+         FYear = as.factor(Year))
+
+## 625 obs
+hb_dat <- Quota_plus_IUCN_Traits %>%
+  filter(!is.na(hab_breadth)) %>%
+  mutate(SYear = (Year - mean(Year))/sd(Year),
+         hb_z = (hab_breadth - mean(hab_breadth))/sd(hab_breadth),
          FYear = as.factor(Year))
 
 
@@ -196,6 +203,20 @@ ml_mod <- brm(Quota ~ SYear + log_ml_z + Coarse_source + Coarse_source:SYear +
               data = ml_dat,
               iter = 1000, warmup = 500, chains = 4, cores = 4)
 
+
+hb_mod <- brm(Quota ~ SYear + hb_z + Coarse_source + Coarse_source:SYear +
+                Coarse_source:hb_z + 
+                (SYear + Coarse_source + Coarse_source:SYear|Taxon) +
+                (1|Exporter) + (1|FYear),
+              family = negbinomial(),
+              prior = c(prior(normal(0, 2), class = "b"),
+                        prior(normal(0, 2), class = "Intercept"),
+                        prior(normal(0, 2), class = "sd"),
+                        prior(lkj(2), class = "cor")),
+              file = "Outputs/Models/hb_mod.rds",
+              data = hb_dat,
+              iter = 1000, warmup = 500, chains = 4, cores = 4)
+
 #### Interpretation ####
 
 bm_new <- bm_dat %>% group_by(Coarse_source) %>% 
@@ -208,6 +229,10 @@ cl_new <- cl_dat %>% group_by(Coarse_source) %>%
 
 ml_new <- ml_dat %>% group_by(Coarse_source) %>% 
   reframe(log_ml_z = seq(from = min(log_ml_z), to = max(log_ml_z), length.out = 25),
+          SYear = 0)
+
+hb_new <- hb_dat %>% group_by(Coarse_source) %>% 
+  reframe(hb_z = seq(from = min(hb_z), to = max(hb_z), length.out = 25),
           SYear = 0)
 
 iucn_new <- iucn_dat %>% distinct(Coarse_source, IUCN_code) %>%
@@ -227,6 +252,10 @@ ml_sum <- ml_new %>% add_epred_draws(ml_mod, re_formula = NA) %>% group_by(Coars
   median_hdci(.epred, .width = .9) %>%
   mutate(log_ml = log_ml_z*sd(ml_dat$log_ml) + mean(ml_dat$log_ml),
          ml = 10^log_ml)
+
+hb_sum <- hb_new %>% add_epred_draws(hb_mod, re_formula = NA) %>% group_by(Coarse_source,hb_z) %>%
+  median_hdci(.epred, .width = .9) %>%
+  mutate(hb = hb_z*sd(hb_dat$hab_breadth) + mean(hb_dat$hab_breadth))
 
 iucn_sum <- iucn_new %>% add_epred_draws(iucn_mod, re_formula = NA) %>% group_by(Coarse_source,IUCN_code) %>%
   median_hdci(.epred, .width = .9) %>%
@@ -297,6 +326,25 @@ ml_wild_plt <- ggplot(filter(ml_sum, Coarse_source == "Wild"), aes(ml/365, .epre
   scale_x_log10() +
   theme_minimal()
 
+## hb
+hb_capt_plt <- ggplot(filter(hb_sum, Coarse_source == "Captive"), aes(hb, .epred)) +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = "grey", alpha = .5, 
+              colour = "black", linetype = "dashed") +
+  geom_line(colour = "black") +
+  ylab("Quota volume") +
+  xlab("Habitat breadth") +
+  #coord_cartesian(ylim = c(0, 3000)) +
+  theme_minimal()
+
+hb_wild_plt <- ggplot(filter(hb_sum, Coarse_source == "Wild"), aes(hb, .epred)) +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), fill = "chartreuse4", alpha = .5, 
+              colour = "black", linetype = "dashed") +
+  geom_line(colour = "black") +
+  ylab("Quota volume") +
+  xlab("Habitat breadth") +
+  #coord_cartesian(ylim = c(0, 3000)) +
+  theme_minimal()
+
 ## iucn
 iucn_capt_plt <- ggplot(filter(iucn_sum, Coarse_source == "Captive"), aes(IUCN_code, .epred)) +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), colour = "grey", width = 0, size = 1) +
@@ -314,19 +362,19 @@ iucn_wild_plt <- ggplot(filter(iucn_sum, Coarse_source == "Wild"), aes(IUCN_code
   #coord_cartesian(ylim = c(0, 12000)) +
   theme_minimal()
 
-trait_plt <- ggarrange(bm_capt_plt, bm_wild_plt, cl_capt_plt, cl_wild_plt,
-          ml_capt_plt, ml_wild_plt, iucn_capt_plt, iucn_wild_plt,
-          labels = c("A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."),
-          nrow = 4, ncol = 2)
+trait_plt <- ggarrange(bm_wild_plt, bm_capt_plt, cl_wild_plt, cl_capt_plt, 
+          ml_wild_plt, ml_capt_plt, hb_wild_plt, hb_capt_plt, iucn_wild_plt,iucn_capt_plt, 
+          labels = c("A.", "B.", "C.", "D.", "E.", "F.", "G.", "H.", "I.", "J."),
+          nrow = 5, ncol = 2)
 
 final_trait_plt <- trait_plt + 
-  annotation_custom(text_grob("Captive-sourced", face = "bold", size= 11), xmin = 0.27, xmax = 0.27, ymin = 0.98, ymax = 1.0) +
-  annotation_custom(text_grob("Wild-sourced", face = "bold", size= 11), xmin = 0.77, xmax = 0.77, ymin = 0.98, ymax = 1.0)
+  annotation_custom(text_grob("Wild-sourced", face = "bold", size= 11), xmin = 0.27, xmax = 0.27, ymin = 0.98, ymax = 1.0) +
+  annotation_custom(text_grob("Captive-sourced", face = "bold", size= 11), xmin = 0.77, xmax = 0.77, ymin = 0.98, ymax = 1.0)
 
   
 
 ggsave(path = "Outputs/Figures", final_trait_plt, filename = "Trait_plt.png",  bg = "white",
-       device = "png", width = 25, height = 19, units = "cm")
+       device = "png", width = 25, height = 23, units = "cm")
 
 bm_coef_sum <- fixef(bm_mod, summary = FALSE) %>% as.data.frame() %>%
   pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
@@ -349,6 +397,13 @@ cl_coef_sum <- fixef(cl_mod, summary = FALSE) %>% as.data.frame() %>%
   group_by(coef, pd) %>%
   median_hdci(val, .width = .9)
 
+hb_coef_sum <- fixef(hb_mod, summary = FALSE) %>% as.data.frame() %>%
+  pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
+  group_by(coef) %>%
+  mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100)) %>%
+  group_by(coef, pd) %>%
+  median_hdci(val, .width = .9)
+
 iucn_coef_sum <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
   pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
   group_by(coef) %>%
@@ -359,9 +414,11 @@ iucn_coef_sum <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
 write.csv(bm_coef_sum, "Outputs/Summary/F4/bm_coef_sum.csv")
 write.csv(cl_coef_sum, "Outputs/Summary/F4/cl_coef_sum.csv")
 write.csv(ml_coef_sum, "Outputs/Summary/F4/ml_coef_sum.csv")
+write.csv(hb_coef_sum, "Outputs/Summary/F4/hb_coef_sum.csv")
 write.csv(iucn_coef_sum, "Outputs/Summary/F4/iucn_coef_sum.csv")
 
 write.csv(bm_dat, "Outputs/Summary/F4/bm_fitting_dat.csv")
 write.csv(cl_dat, "Outputs/Summary/F4/cl_fitting_dat.csv")
 write.csv(ml_dat, "Outputs/Summary/F4/ml_fitting_dat.csv")
+write.csv(hb_dat, "Outputs/Summary/F4/hb_fitting_dat.csv")
 write.csv(iucn_dat, "Outputs/Summary/F4/iucn_fitting_dat.csv")
