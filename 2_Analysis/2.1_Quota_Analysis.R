@@ -9,6 +9,7 @@ library(tidyverse)
 library(ggpubr)
 library(ggtext)
 library(viridis)
+library(cowplot)
 
 CITES_Parties <- data.table::fread("Data/CITES/CITES_Parties.csv", na.strings = "")
 Quota_clean_raw <- read.csv("Data/CITES/Quotas/Quota_codes_raw_summary.csv")
@@ -57,6 +58,8 @@ length(unique(Quota_clean_raw$party)) ## 70
 length(unique(Quota_clean_raw$FullName))
 length(unique(Quota_trade_listing$Taxon))
 length(unique(Quota_length$FullName))
+
+Quota_clean_raw %>% group_by(Rank) %>% tally(n_distinct(FullName))
 
 Quota_types_sum <- Quota_clean_raw %>% group_by(Quota_type) %>% tally() %>%
   mutate(Quota_label = gsub("-specific", "", Quota_type),
@@ -147,146 +150,21 @@ write.csv(Quota_types_sum, "Outputs/Summary/F1/Quota_Types_sum.csv")
 
 #### Quota compliance ####
 
-## absolute quota compliance
-Ban_df <- Quota_trade_listing %>% filter(Zero_quota == "Yes", Other_term_quotas_in_place == "No")
-Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>%
-  mutate(Traded = case_when(Volume == 0 ~ "No",
-                            Volume > 0 & Quota_breach == "No" ~ "Yes, no breach",
-                            Volume > 0 & Quota_breach == "Yes" ~ "Yes, breach"))
+ER_compliance <- compliance_plots(data = Quota_trade_listing, geo_data = Quota_trade_listing2, reporter = "ER") 
+IR_compliance <- compliance_plots(data = Quota_trade_listing, geo_data = Quota_trade_listing2, reporter = "IR")
 
-length(unique(Ban_df$Taxon))
-length(unique(Ban_df$Name))
-length(unique(Quota_df$Taxon))
-length(unique(Quota_df$Name))
-
-Ban_df_sum <- Ban_df %>% group_by(Quota_breach) %>% tally() %>% mutate(Perc = round(n/sum(n) * 100, 2))
-Quota_df_sum <- Quota_df %>% group_by(Quota_breach) %>% tally()%>% mutate(Perc = round(n/sum(n) * 100, 2))
-
-Ban_sum_plt <- ggplot(Ban_df_sum, aes(n, Quota_breach, fill = Quota_breach)) + 
-  geom_col() +
-  geom_text(aes(label = paste0(Perc, "%")), hjust = -.5) +
-  scale_fill_manual(values = c("royalblue4", "tomato")) +
-  coord_cartesian(xlim = c(0, 200)) +
-  xlab("Number of quotas") +
-  ylab("Breached <br> bans") +
-  theme_minimal() +
-  theme(legend.position = "none", axis.title.y = element_markdown())
-
-Quota_sum_plt <- ggplot(Quota_df_sum, aes(n, Quota_breach,fill = Quota_breach)) + 
-  geom_col() +
-  geom_text(aes(label = paste0(Perc, "%")), hjust = -.5) +
-  scale_fill_manual(values = c("royalblue4", "tomato")) +
-  coord_cartesian(xlim = c(0, 3200)) +
-  xlab("Number of quotas") +
-  ylab("Breached <br> quotas") +
-  theme_minimal() +
-  theme(legend.position = "none", axis.title.y = element_markdown())
-
-Ban_map_df <- Quota_trade_listing2 %>% filter(Zero_quota == "Yes", Other_term_quotas_in_place == "No") %>%
-  group_by(Exporter, geometry) %>% tally()
-Banbreach_map_df <- Quota_trade_listing2 %>% filter(Zero_quota == "Yes", Other_term_quotas_in_place == "No", Quota_breach == "Yes") %>%
-  group_by(Exporter, geometry) %>% tally()
-Quota_map_df <- Quota_trade_listing2 %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>%
-  group_by(Exporter, geometry) %>% tally()
-Quotabreach_map_df <- Quota_trade_listing2 %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No", Quota_breach == "Yes") %>%
-  group_by(Exporter, geometry) %>% tally()
-
-
-ban_map_plt <- ggplot() + 
-  geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
-  geom_sf(data = Ban_map_df, aes(fill = n, geometry = geometry)) +
-  scale_fill_gradient(name = "Live bans", na.value="", breaks = c(10, 90), 
-                      low = "white", high = "royalblue4") +
-  coord_sf(ylim = c(-50, 90), datum = NA) +
-  theme_classic(base_size = 12) +
-  theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-        legend.title=element_text(size=10))
-
-banbreach_map_plt <- ggplot() + 
-  geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
-  geom_sf(data = Banbreach_map_df, aes(fill = n, geometry = geometry)) +
-  scale_fill_gradient(name = "Live ban breaches", na.value="", breaks = c(1, 10),
-                      low = "white", high = "tomato") +
-  coord_sf(ylim = c(-50, 90), datum = NA) +
-  theme_classic(base_size = 12) +
-  theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-        legend.title=element_text(size=10))
-
-quota_map_plt <- ggplot() + 
-  geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
-  geom_sf(data = Quota_map_df, aes(fill = n, geometry = geometry)) +
-  scale_fill_gradient(name = "Live quotas", na.value="",breaks = c(100, 600), 
-                      low = "white", high = "royalblue4") +
-  coord_sf(ylim = c(-50, 90), datum = NA) +
-  theme_classic(base_size = 12) +
-  theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-        legend.title=element_text(size=10))
-
-quotabreach_map_plt <- ggplot() + 
-  geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
-  geom_sf(data = Quotabreach_map_df, aes(fill = n, geometry = geometry)) +
-  scale_fill_gradient(name = "Live quota breaches", na.value="", breaks = c(50, 250),
-                      low = "white", high = "tomato") +
-  coord_sf(ylim = c(-50, 90), datum = NA) +
-  theme_classic(base_size = 12) +
-  theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-        legend.title=element_text(size=10))
-
-## The really high quotas for ptyas mucosus are likely because of odd use of term codes
-## in quotas. E.g. quotas are termed specifically for live individuals and skins are quota'd
-## seperately but in reality the skins are alos traded live
-## also true for Amyda cartilaginea, Naja sputatrix
-## all examples so far are from Indonesia
-All_mean <- Quota_df %>% filter(Other_term_quotas_in_place == "No") %>% summarise(mean = round(mean(Perc_of_quota), 2))
-Traded_mean <- Quota_df %>% filter(Other_term_quotas_in_place == "No", Perc_of_quota > 0) %>% summarise(mean = round(mean(Perc_of_quota), 2))
-
-Inset_quota_perc <- ggplot(Quota_df, 
-                           aes(Perc_of_quota, fill = Traded, colour = Traded)) +
-  geom_histogram(bins = 100, alpha = .9) +
-  geom_vline(xintercept = 100, colour = "red") +
-  scale_fill_manual(values = c("black", "tomato", "royalblue4")) +
-  scale_colour_manual(values = c("black", "tomato", "royalblue4")) +
-  xlab("% of quota") +
-  ylab("Number of quotas") +
-  theme_minimal() +
-  theme(legend.position = "none", axis.title = element_blank(), 
-        panel.background = element_rect(fill = "white", colour = "white"))
-
-All_quota_perc <- ggplot(filter(Quota_df, Perc_of_quota < 250), 
-       aes(Perc_of_quota, fill = Traded)) +
-  geom_histogram(bins = 75) +
-  geom_vline(xintercept = 100, colour = "red") +
-  geom_vline(xintercept = All_mean$mean, linetype = "dashed") +
-  geom_vline(xintercept = Traded_mean$mean, linetype = "dashed", colour = "darkblue") +
-  geom_text(aes(x = All_mean$mean - 10, y = 90, label = paste0( All_mean$mean, "%")), angle = 90) +
-  geom_text(aes(x = Traded_mean$mean - 10, y = 90, label = paste0( Traded_mean$mean, "%")), angle = 90, colour = "darkblue") +
-  coord_cartesian(ylim = c(0, 110)) +
-  scale_fill_manual(values = c("black", "tomato", "royalblue4")) +
-  scale_colour_manual(values = c("black", "tomato", "royalblue4")) +  xlab("% of quota used") +
-  ylab("Number of quotas") +
-  theme_minimal() +
-  theme(legend.position = "none")
-
-library(cowplot)
-quota_arrange <- ggdraw() +
-  draw_plot(All_quota_perc) +
-  draw_plot(Inset_quota_perc, x = 0.5, y = 0.6, width = .5, height = .4)
-
-Quota_ban_arrange <- ggarrange(ggarrange(ban_map_plt, quota_map_plt, banbreach_map_plt, quotabreach_map_plt,
-                               Ban_sum_plt, Quota_sum_plt,  nrow = 3, ncol = 2,
-                               labels = c("A.", "B.", "C.", "D.", "E.", "F."), label.x = -0.01,
-                               heights = c(1, 1, 0.7)),
-                               quota_arrange, ncol = 1, labels = c("", "G."), heights = c(1.6, 1))
-
-ggsave(path = "Outputs/Figures", Quota_ban_arrange, filename = "Quota_ban_plt.png",  bg = "white",
+ggsave(path = "Outputs/Figures", ER_compliance$Plot, filename = "Quota_ban_plt.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
-write.csv(Ban_df, "Outputs/Summary/F2/Ban_df.csv")
-write.csv(Quota_df, "Outputs/Summary/F2/Quota_df.csv")
-write.csv(select(Quota_map_df, -geometry), "Outputs/Summary/F2/Quota_map_df.csv")
-write.csv(select(Quotabreach_map_df, -geometry), "Outputs/Summary/F2/Quotabreach_map_df.csv")
-write.csv(select(Ban_map_df, -geometry), "Outputs/Summary/F2/Ban_map_df.csv")
-write.csv(select(Banbreach_map_df, -geometry), "Outputs/Summary/F2/Banbreach_map_df.csv")
+ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png",  bg = "white",
+       device = "png", width = 18, height = 22, units = "cm")
+
+write.csv(ER_compliance$Ban_df, "Outputs/Summary/F2/Ban_df.csv")
+write.csv(ER_compliance$Quota_df, "Outputs/Summary/F2/Quota_df.csv")
+write.csv(select(ER_compliance$Quota_map_df, -geometry), "Outputs/Summary/F2/Quota_map_df.csv")
+write.csv(select(ER_compliance$Quotabreach_map_df, -geometry), "Outputs/Summary/F2/Quotabreach_map_df.csv")
+write.csv(select(ER_compliance$Ban_map_df, -geometry), "Outputs/Summary/F2/Ban_map_df.csv")
+write.csv(select(ER_compliance$Banbreach_map_df, -geometry), "Outputs/Summary/F2/Banbreach_map_df.csv")
 
 
 #### Modelling before after quota ####
