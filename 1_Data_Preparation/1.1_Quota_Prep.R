@@ -47,10 +47,11 @@ Notes_terms_in <- read_csv("Data/CITES/Formatting/Note_terms_IN.csv")
 
 Quota_codes <- left_join(Quota_raw, Notes_terms_in) %>%
   mutate(Purpose = ifelse(is.na(Purpose), "FLAG", Purpose),
-         Source = ifelse(is.na(Source), "FLAG", Source),
+         Source_orig = ifelse(is.na(Source)|Source == "FLAG", "Assumed Wild", Source),
+         Source = ifelse(is.na(Source)|Source == "FLAG", "W", Source),
          Term = ifelse(is.na(Term), "FLAG", Term),
          Purpose_verbose = ifelse(is.na(Purpose_verbose), "FLAG", Purpose_verbose),
-         Source_verbose = ifelse(is.na(Source_verbose), "FLAG", Source_verbose),
+         Source_verbose = ifelse(is.na(Source_verbose), "W", Source_verbose),
          Term_verbose = ifelse(is.na(Term_verbose), "FLAG", Term_verbose),
          #Rank = ifelse(!is.na(Ssp_specific), "SUBSPECIES", Rank), ## see comment below
          `Full Name` = ifelse(!is.na(Ssp_specific), Ssp_specific, `Full Name`),
@@ -105,16 +106,16 @@ Quota_LIV <- Quota_codes %>% filter(Term == "LIV", year < 2022) %>% group_by(Ful
 ## 23 issues
 ## 2 manually removed (records where the quota was reissued in a single year due to taxo changes)
 ## Kinyongia fischeri from Tanzania in 2010 line 702
-## Tupinambis teguixin from Colombia in 2000 line 1368
+## Tupinambis teguixin from Colombia in 2000 line 2044
 ## 8 summed over
 ## so the total number is 10. So 21 - 10 = 11 (total number of records should be 11 less than 3074)
 Manual_check <- Quota_LIV %>% group_by(Quota_ID, year) %>% filter(n() > 1)
-Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+Manual_check %>% filter(!ROW_ID %in% c(702, 2044)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   summarise(Quota = sum(quota))
 
-check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 2044)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                 Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                 Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   tally()
@@ -127,7 +128,7 @@ check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party,
 ## 3324 quota records
 Quota_LIV_clean <- Quota_LIV %>% filter(!ROW_ID %in% c(702, 1368)) %>% 
   group_by(party, year, Family, Genus, Order, Rank, FullName, Term, Term_verbose, 
-                       Purpose, Purpose_verbose, Source, Source_verbose, unit,
+                       Purpose, Purpose_verbose, Source, unit,
                        Quota_type, Overlapping_quotas, Overlapping_quotas_LIV, Other_term_quotas_in_place) %>%
   summarise(Quota = sum(quota), Comb_raw_notes = str_c(unique(notes), collapse = " // ")) %>% 
   group_by(party, FullName, Purpose, Source, Term) %>%
@@ -176,7 +177,7 @@ Quota_clean_expanded <- Quota_LIV_clean %>% separate_rows(Source, Term, Purpose)
   left_join(select(CITES_Parties, Name, ISO)) %>%
   rename(Exporter = ISO)
 
-## 8 TP, 761 TS, 2555 T (3324 total)
+## 8 TSP, 3324 TS, (3,332 total)
 Quota_LIV_clean %>% group_by(Quota_type) %>% tally()
 Quota_LIV_clean %>% group_by(Rank) %>% tally()
 Quota_clean_expanded_sp <- Quota_clean_expanded %>% filter(Rank %in% c("SPECIES", "SUBSPECIES"))
@@ -189,7 +190,7 @@ Quota_TermE <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-spe
                          by = c("Taxon", "Exporter", "Year", "Term")) %>%
   rename(Purpose = Purpose.x, Source = Source.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV,Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   summarise(Volume = sum(Volume), 
             Traded_purpose = str_c(unique(Purpose.y), collapse = ", "),
@@ -200,7 +201,7 @@ Quota_TermI <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-spe
                          by = c("Taxon", "Exporter", "Year", "Term")) %>%
   rename(Purpose = Purpose.x, Source = Source.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV,Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   summarise(Volume_IR = sum(Volume), 
             Traded_purpose_IR = str_c(unique(Purpose.y), collapse = ", "),
@@ -215,7 +216,7 @@ Quota_TermSourceE <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Te
                                by = c("Taxon", "Exporter", "Year", "Term", "Source")) %>%
   rename(Purpose = Purpose.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Traded_source = ifelse(!is.na(Volume), Source, NA),
          Volume = ifelse(is.na(Volume), 0, Volume)) %>%
@@ -230,7 +231,7 @@ Quota_TermSourceI <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Te
                                by = c("Taxon", "Exporter", "Year", "Term", "Source")) %>%
   rename(Purpose = Purpose.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Traded_source = ifelse(!is.na(Volume), Source, NA),
          Volume = ifelse(is.na(Volume), 0, Volume)) %>%
@@ -243,12 +244,12 @@ Quota_TermSourceI <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Te
 TermSource_all <- left_join(Quota_TermSourceE, Quota_TermSourceI)
 
 ## Quota term purpose
-Quota_TermPurposeE <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-Purpose-specific"),
+Quota_TermPurposeE <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-Source-Purpose-specific"),
                                 Trade_quota_spER,
                                 by = c("Taxon", "Exporter", "Year", "Term", "Purpose")) %>%
   rename(Source = Source.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Traded_purpose = ifelse(!is.na(Volume), Purpose, NA),
          Volume = ifelse(is.na(Volume), 0, Volume)) %>%
@@ -258,12 +259,12 @@ Quota_TermPurposeE <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "T
             Traded_source = str_c(unique(Source.y), collapse = ", ")) %>%
   mutate(Traded_taxa = Taxon)
 
-Quota_TermPurposeI <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-Purpose-specific"),
+Quota_TermPurposeI <- left_join(filter(Quota_clean_expanded_sp, Quota_type == "Term-Source-Purpose-specific"),
                                 Trade_quota_spIR,
                                 by = c("Taxon", "Exporter", "Year", "Term", "Purpose")) %>%
   rename(Source = Source.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Taxon, Rank, 
-           Term, Term_verbose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Traded_purpose = ifelse(!is.na(Volume), Purpose, NA),
          Volume = ifelse(is.na(Volume), 0, Volume)) %>%
@@ -288,7 +289,7 @@ Quota_genusE <- Quota_clean_expanded %>% filter(Rank == "GENUS") %>%
   left_join(Genus_lvl, by = c("Genus", "Exporter", "Year", "Term")) %>%
   rename(Purpose = Purpose.x, Source = Source.x, Taxon = Taxon.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Genus, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Volume = ifelse(is.na(Volume), 0, Volume)) %>%
   summarise(Volume = sum(Volume), 
@@ -300,7 +301,7 @@ Quota_genusI <- Quota_clean_expanded %>% filter(Rank == "GENUS") %>%
   left_join(Genus_lvl_IR, by = c("Genus", "Exporter", "Year", "Term")) %>%
   rename(Purpose = Purpose.x, Source = Source.x, Taxon = Taxon.x) %>%
   group_by(Quota_type, Quota_ID, Name, Exporter, Year, Order, Family, Genus, Taxon, Rank, 
-           Term, Term_verbose, Purpose, Purpose_verbose, Source, Source_verbose,
+           Term, Term_verbose, Purpose, Purpose_verbose, Source, 
            Overlapping_quotas_LIV, Other_term_quotas_in_place, Comb_raw_notes, Quota) %>%
   mutate(Volume = ifelse(is.na(Volume), 0, Volume)) %>%
   summarise(Volume_IR = sum(Volume), 
