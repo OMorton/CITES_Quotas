@@ -160,6 +160,14 @@ ggsave(path = "Outputs/Figures", ER_compliance$Plot, filename = "Quota_ban_plt.p
 ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
+Ban_df <- ER_compliance$Ban_df
+Quota_df <- ER_compliance$Quota_df
+Quota_df %>% filter(Traded == "No")
+Quota_map_df <- select(ER_compliance$Quota_map_df, -geometry)
+Quotabreach_map_df <- select(ER_compliance$Quotabreach_map_df, -geometry)
+Ban_map_df <- select(ER_compliance$Ban_map_df, -geometry)
+Banbreach_map_df <- select(ER_compliance$Banbreach_map_df, -geometry)
+
 write.csv(ER_compliance$Ban_df, "Outputs/Summary/F2/Ban_df.csv")
 write.csv(ER_compliance$Quota_df, "Outputs/Summary/F2/Quota_df.csv")
 write.csv(select(ER_compliance$Quota_map_df, -geometry), "Outputs/Summary/F2/Quota_map_df.csv")
@@ -285,7 +293,7 @@ PP_mod_sum <- Centred_series_sd %>%
   add_epred_draws(Pre_Post_Quota_mod, re_formula = NULL)
 
 PP_lines_sum <- PP_mod_sum  %>% 
-  group_by(Year_cent, vol_sd,Taxon_exp,  Taxon, Exporter, State, Quota, sd) %>%
+  group_by(Year_cent, vol_sd,Taxon_exp,  Taxon, Exporter, State, Quota) %>%
   median_hdci(.epred, .width = .9) %>%
   unite("ID", c("Taxon_exp", "State"), remove = FALSE)
 
@@ -326,7 +334,7 @@ average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred,
   scale_color_manual(values = c("black", "grey", "dodgerblue")) +
   scale_fill_manual(values = c("black", "grey", "dodgerblue")) +
   annotate(geom = "text", label = "Pre-quota", x = -5, y = 0.6, fontface = "bold", colour = "black") +
-  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =0.2, fontface = "bold", colour = "grey") +
+  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =-1, fontface = "bold", colour = "grey") +
   annotate(geom = "text", label = "Post-quota quota levels", x = 5, y =1.7, fontface = "bold", colour = "dodgerblue") +
   theme_minimal() +
   theme(axis.title.y = element_markdown(), legend.position = "none")
@@ -489,7 +497,7 @@ Quota_changes <- Quota_clean_raw %>%
   group_by(quota_id) %>%
   summarise(diff_quotas = n_distinct(quota), length = n())
 
-## 1099
+## 980
 Quota_changes2 <- Quota_changes %>% filter(length > 1)
 length_dat <- Quota_changes%>% filter(length > 1) %>% group_by(length) %>% tally()
 
@@ -510,7 +518,7 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   ylab("Distinct quotas set") +
   theme_minimal(base_size = 12)
 
-## 603/1099 quotas longer than a single year never change
+## 490/980 quotas longer than a single year never change
 Quota_changes2 %>% filter(diff_quotas == 1)
 
 
@@ -519,8 +527,8 @@ Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas,
                                                Changes_every_5_years = ifelse(freq >= 5, 1, 0),
                                                Changes_every_2_years = ifelse(freq >= 2, 1, 0))
 
-## 67 quotas updated every 10 or more years
-## 294 quotas updated every 5 or more years
+## 75 quotas updated every 10 or more years
+## 297 quotas updated every 5 or more years
 Quota_changes_sum2 <- Quota_changes_sum %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Changes_every_5_years = sum(Changes_every_5_years),
@@ -535,7 +543,7 @@ Quota_changes_sum %>% filter(length >= 10) %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Year10_prop = sum(Changes_every_10_years)/n() *100)
 
-## 90 are set yearly
+## 71 are set yearly
 Quota_changes2 %>% filter(diff_quotas == length)
 
 ggsave(path = "Outputs/SM", Quota_changes_fig, filename = "Quota_changes_fig.png",  bg = "white",
