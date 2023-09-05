@@ -93,25 +93,25 @@ ggplot(Quota_plus_IUCN_Traits, aes(IUCN_code, Quota + 1)) +
 
 ggplot(Quota_plus_IUCN_Traits, aes(Body_mass_g, Quota + 1)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "gam") +
   scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
 ggplot(Quota_plus_IUCN_Traits, aes(Max_longevity_d, Quota + 1)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "gam") +
   scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
 ggplot(Quota_plus_IUCN_Traits, aes(Litter_clutch_size, Quota + 1)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "gam") +
   #scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
 ggplot(Quota_plus_IUCN_Traits, aes(hab_breadth, Quota + 1)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "gam") +
   #scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
@@ -161,7 +161,7 @@ bm_mod <- brm(Quota ~ SYear + log_bm_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/bm_mod.rds",
+              file = "Outputs/Models/bm_mod2.rds",
               data = bm_dat,
               iter = 1000, warmup = 500, chains = 4, cores = 4)
 
@@ -174,9 +174,9 @@ cl_mod <- brm(Quota ~ SYear + cl_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/cl_mod.rds",
+              file = "Outputs/Models/cl_mod2.rds",
               data = cl_dat,
-              iter = 1000, warmup = 500, chains = 4, cores = 4)
+              iter = 1500, warmup = 750, chains = 4, cores = 4)
 
 iucn_mod <- brm(Quota ~ SYear + IUCN_code + Coarse_source + Coarse_source:SYear +
                 Coarse_source:IUCN_code + 
@@ -187,9 +187,9 @@ iucn_mod <- brm(Quota ~ SYear + IUCN_code + Coarse_source + Coarse_source:SYear 
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/iucn_mod.rds",
+              file = "Outputs/Models/iucn_mod2.rds",
               data = iucn_dat,
-              iter = 1000, warmup = 500, chains = 4, cores = 4)
+              iter = 1500, warmup = 750, chains = 4, cores = 4)
 
 ml_mod <- brm(Quota ~ SYear + log_ml_z + Coarse_source + Coarse_source:SYear +
                 Coarse_source:log_ml_z + 
@@ -200,9 +200,9 @@ ml_mod <- brm(Quota ~ SYear + log_ml_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/ml_mod.rds",
+              file = "Outputs/Models/ml_mod2.rds",
               data = ml_dat,
-              iter = 1000, warmup = 500, chains = 4, cores = 4)
+              iter = 1500, warmup = 750, chains = 4, cores = 4)
 
 
 hb_mod <- brm(Quota ~ SYear + hb_z + Coarse_source + Coarse_source:SYear +
@@ -214,9 +214,9 @@ hb_mod <- brm(Quota ~ SYear + hb_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/hb_mod.rds",
+              file = "Outputs/Models/hb_mod2.rds",
               data = hb_dat,
-              iter = 1000, warmup = 500, chains = 4, cores = 4)
+              iter = 1500, warmup = 750, chains = 4, cores = 4)
 
 #### Interpretation ####
 
@@ -486,3 +486,4 @@ write.csv(cl_dat, "Outputs/Summary/F4/cl_fitting_dat.csv")
 write.csv(ml_dat, "Outputs/Summary/F4/ml_fitting_dat.csv")
 write.csv(hb_dat, "Outputs/Summary/F4/hb_fitting_dat.csv")
 write.csv(iucn_dat, "Outputs/Summary/F4/iucn_fitting_dat.csv")
+
