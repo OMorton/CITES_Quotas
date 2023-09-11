@@ -40,12 +40,22 @@ Quota_raw <- Quota_raw %>% mutate(notes = str_trim(notes),
 length(unique(Quota_raw$notes))
 Note_terms <- Quota_raw %>% distinct(notes)
 
+## 303 distinct species-notes phrases where there is suspected
+## taxanomic ambiguity.
+Taxa_uncert <- Quota_raw %>% filter(grepl("originally", notes)|grepl("synon", notes)|
+                                      grepl("split", notes)|grepl("taxonomic changes", notes)|
+                                      grepl("lumped", notes)) %>% distinct(`Full Name`, notes)
+
 ## write out for classification
 write.csv(Note_terms, "Data/CITES/Formatting/Note_terms_OUT.csv")
+write.csv(Taxa_uncert, "Data/CITES/Formatting/Taxa_uncert_OUT.csv")
+
 ## read in and bind
 Notes_terms_in <- read_csv("Data/CITES/Formatting/Note_terms_IN.csv")
+Taxa_uncert_in <- read_csv("Data/CITES/Formatting/Taxa_uncert_IN.csv")
 
-Quota_codes <- left_join(Quota_raw, Notes_terms_in) %>%
+Quota_codes <- left_join(Quota_raw, Notes_terms_in, by = join_by(notes)) %>%
+  left_join(Taxa_uncert_in, by = join_by(`Full Name`, notes)) %>%
   mutate(Purpose = ifelse(is.na(Purpose), "FLAG", Purpose),
          Source_orig = ifelse(is.na(Source)|Source == "FLAG", "Assumed Wild", Source),
          Source = ifelse(is.na(Source)|Source == "FLAG", "W", Source),
@@ -53,6 +63,7 @@ Quota_codes <- left_join(Quota_raw, Notes_terms_in) %>%
          Purpose_verbose = ifelse(is.na(Purpose_verbose), "FLAG", Purpose_verbose),
          Source_verbose = ifelse(is.na(Source_verbose), "W", Source_verbose),
          Term_verbose = ifelse(is.na(Term_verbose), "FLAG", Term_verbose),
+         Taxa_Remove = ifelse(is.na(Taxa_Remove), 0, Taxa_Remove),
          #Rank = ifelse(!is.na(Ssp_specific), "SUBSPECIES", Rank), ## see comment below
          `Full Name` = ifelse(!is.na(Ssp_specific), Ssp_specific, `Full Name`),
          ## despite the notes having text detail specifying the quota applies to a specific 
@@ -70,7 +81,8 @@ Quota_codes %>% filter(!is.na(notes), is.na(Term))
 ## Remove quotas for -1 these often link to specific notifications and concern the 
 ## issuance of permits under certain  conditions that cannot be verified from the available data.
 ## Similarly remove all unusable quotas
-Quota_codes <- Quota_codes %>% filter(quota >= 0, is.na(Usability_check)) %>%
+## 7761 
+Quota_codes <- Quota_codes %>% filter(quota >= 0, is.na(Usability_check), Taxa_Remove == 0) %>%
   mutate(Quota_type = case_when(Term != "FLAG" & Purpose != "FLAG" & Source != "FLAG" ~ "Term-Source-Purpose-specific",
                                 Term == "FLAG" & Purpose != "FLAG" & Source != "FLAG" ~ "Purpose-Source-specific",
                                 Term != "FLAG" & Purpose == "FLAG" & Source != "FLAG" ~ "Term-Source-specific",
@@ -110,12 +122,12 @@ Quota_LIV <- Quota_codes %>% filter(Term == "LIV", year < 2022) %>% group_by(Ful
 ## 8 summed over
 ## so the total number is 10. So 21 - 10 = 11 (total number of records should be 11 less than 3074)
 Manual_check <- Quota_LIV %>% group_by(Quota_ID, year) %>% filter(n() > 1)
-Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+Manual_check %>% filter(!ROW_ID %in% c(664, 1294)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   summarise(Quota = sum(quota))
 
-check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+check2 <- Manual_check %>% filter(!ROW_ID %in% c(664, 1294)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                 Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                 Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   tally()
@@ -126,7 +138,7 @@ check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party,
 ## Similarly some split out the live purposes e.g. live (pets) and live (consumption)
 ## so sum over these as well.
 ## 3324 quota records
-Quota_LIV_clean <- Quota_LIV %>% filter(!ROW_ID %in% c(702, 1368)) %>% 
+Quota_LIV_clean <- Quota_LIV %>% filter(!ROW_ID %in% c(664, 1294)) %>% 
   group_by(party, year, Family, Genus, Order, Rank, FullName, Term, Term_verbose, 
                        Purpose, Purpose_verbose, Source, unit,
                        Quota_type, Overlapping_quotas, Overlapping_quotas_LIV, Other_term_quotas_in_place) %>%
@@ -134,7 +146,7 @@ Quota_LIV_clean <- Quota_LIV %>% filter(!ROW_ID %in% c(702, 1368)) %>%
   group_by(party, FullName, Purpose, Source, Term) %>%
   mutate(Quota_ID = cur_group_id())
 
-length(unique(Quota_LIV_clean$FullName)) ## 236
+length(unique(Quota_LIV_clean$FullName)) ## 227
 length(unique(Quota_LIV_clean$party)) ## 29
 Quota_LIV_clean %>% group_by(Quota_ID) %>% tally() %>% group_by(n) %>% tally()
 
@@ -177,7 +189,7 @@ Quota_clean_expanded <- Quota_LIV_clean %>% separate_rows(Source, Term, Purpose)
   left_join(select(CITES_Parties, Name, ISO)) %>%
   rename(Exporter = ISO)
 
-## 8 TSP, 3324 TS, (3,332 total)
+## 8 TSP, 3150 TS, (3,332 total)
 Quota_LIV_clean %>% group_by(Quota_type) %>% tally()
 Quota_LIV_clean %>% group_by(Rank) %>% tally()
 Quota_clean_expanded_sp <- Quota_clean_expanded %>% filter(Rank %in% c("SPECIES", "SUBSPECIES"))
@@ -632,7 +644,7 @@ Test_name <- Etard_dat %>% select(Best_guess_binomial, Genus)
 Quota_sp <- Quota_trade_listing %>% select(Taxon) %>% distinct
 
 Check <- left_join(Quota_sp, Test_name, by = c("Taxon" = "Best_guess_binomial"))
-Checklist <- Check %>% filter(is.na(Genus)) ## 29 species not already matched
+Checklist <- Check %>% filter(is.na(Genus)) ## 28 species not already matched
 
 ## names matched using Etards 2018 synonyms
 Quota_sp2 <- Quota_sp %>% mutate(Etard_name = case_when(Taxon == "Tupinambis teguixin" ~ "Salvator merianae",
