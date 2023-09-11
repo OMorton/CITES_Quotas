@@ -162,6 +162,9 @@ ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png
 
 Ban_df <- ER_compliance$Ban_df
 Quota_df <- ER_compliance$Quota_df
+
+nrow(Quota_df) + nrow(Ban_df)
+
 Quota_df %>% filter(Traded == "No")
 Quota_map_df <- select(ER_compliance$Quota_map_df, -geometry)
 Quotabreach_map_df <- select(ER_compliance$Quotabreach_map_df, -geometry)
@@ -494,10 +497,12 @@ Quota_changes <- Quota_clean_raw %>%
            Purpose, Source, unit,
            Quota_type, Overlapping_quotas) %>%
   mutate(quota_id = cur_group_id()) %>%
-  group_by(quota_id) %>%
+  group_by(quota_id, party, Rank, FullName, Term, 
+           Purpose, Source, unit,
+           Quota_type) %>%
   summarise(diff_quotas = n_distinct(quota), length = n())
 
-## 980
+## 998
 Quota_changes2 <- Quota_changes %>% filter(length > 1)
 length_dat <- Quota_changes%>% filter(length > 1) %>% group_by(length) %>% tally()
 
@@ -518,7 +523,7 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   ylab("Distinct quotas set") +
   theme_minimal(base_size = 12)
 
-## 490/980 quotas longer than a single year never change
+## 498/998 quotas longer than a single year never change
 Quota_changes2 %>% filter(diff_quotas == 1)
 
 
@@ -528,8 +533,8 @@ Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas,
                                                Changes_every_2_years = ifelse(freq >= 2, 1, 0))
 
 ## 75 quotas updated every 10 or more years
-## 297 quotas updated every 5 or more years
-Quota_changes_sum2 <- Quota_changes_sum %>%
+## 298 quotas updated every 5 or more years
+Quota_changes_sum2 <- Quota_changes_sum %>% ungroup() %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Changes_every_5_years = sum(Changes_every_5_years),
             Year10_prop = sum(Changes_every_10_years)/n() *100,
@@ -537,14 +542,43 @@ Quota_changes_sum2 <- Quota_changes_sum %>%
 
 Quota_changes_sum %>% filter(length >= 5) %>%
   summarise(Changes_every_5_years = sum(Changes_every_5_years),
-            Year5_prop = sum(Changes_every_5_years)/n() *100)
+            Year5_prop = sum(Changes_every_5_years)/n() *100,
+            length = n())
 
 Quota_changes_sum %>% filter(length >= 10) %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
-            Year10_prop = sum(Changes_every_10_years)/n() *100)
+            Year10_prop = sum(Changes_every_10_years)/n() *100,
+            length = n())
 
-## 71 are set yearly
+## 79 are set yearly
 Quota_changes2 %>% filter(diff_quotas == length)
 
 ggsave(path = "Outputs/SM", Quota_changes_fig, filename = "Quota_changes_fig.png",  bg = "white",
        device = "png", width = 20, height = 17, units = "cm")
+
+
+Quota_traded_years_sum <- Quota_trade_listing %>% 
+  filter(Other_term_quotas_in_place == "No") %>%
+  group_by(Name, Exporter, Family, Genus, Order, Taxon, Term, 
+           Purpose, Source, Quota_type, Volume) %>% 
+  mutate(quota_id = cur_group_id()) %>%
+  group_by(Name, Exporter, Family, Genus, Order, Taxon, Term, 
+           Purpose, Source, Quota_type) %>%
+  filter(all(Zero_quota == "No")) %>%
+  summarise(diff_quotas = n_distinct(Quota), length = n(), traded_years = sum(Volume > 0)) %>%
+  ungroup() %>%
+  mutate(traded_years/diff_quotas)
+
+ggplot(Quota_traded_years_sum, aes(traded_years, diff_quotas)) + 
+  geom_point(alpha = .5) +
+  geom_smooth() +
+  geom_abline() +
+  coord_cartesian(ylim = c(0, 25))
+
+cor.test(Quota_traded_years_sum$traded_years, Quota_traded_years_sum$diff_quotas)
+
+unique(Quota_traded_years_sum$Name)
+unique(Quota_traded_years_sum$Taxon)
+unique(Quota_traded_years_sum$Family)
+hist(Quota_traded_years_sum$diff_quotas)
+

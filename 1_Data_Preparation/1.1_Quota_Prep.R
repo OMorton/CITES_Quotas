@@ -103,19 +103,19 @@ Quota_LIV <- Quota_codes %>% filter(Term == "LIV", year < 2022) %>% group_by(Ful
   mutate(Quota_ID = cur_group_id()) %>%
   ungroup() %>% mutate(ROW_ID = 1:n())
 
-## 23 issues
+## 25 issues
 ## 2 manually removed (records where the quota was reissued in a single year due to taxo changes)
 ## Kinyongia fischeri from Tanzania in 2010 line 702
 ## Tupinambis teguixin from Colombia in 2000 line 2044
 ## 8 summed over
 ## so the total number is 10. So 21 - 10 = 11 (total number of records should be 11 less than 3074)
 Manual_check <- Quota_LIV %>% group_by(Quota_ID, year) %>% filter(n() > 1)
-Manual_check %>% filter(!ROW_ID %in% c(702, 2044)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   summarise(Quota = sum(quota))
 
-check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 2044)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
+check2 <- Manual_check %>% filter(!ROW_ID %in% c(702, 1368)) %>% group_by(party, year, Family, Order, Rank, FullName, Term, Term_verbose, 
                                                                 Purpose, Purpose_verbose, Source, Source_verbose, unit,
                                                                 Quota_type, Overlapping_quotas, Overlapping_quotas_LIV) %>%
   tally()

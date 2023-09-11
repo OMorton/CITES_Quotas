@@ -115,7 +115,7 @@ ggplot(Quota_plus_IUCN_Traits, aes(hab_breadth, Quota + 1)) +
   #scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
-## 755 obs
+## 3276 obs
 bm_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Body_mass_g)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -123,7 +123,7 @@ bm_dat <- Quota_plus_IUCN_Traits %>%
          log_bm = log10(Body_mass_g),
          log_bm_z = (log_bm - mean(log_bm))/sd(log_bm))
 
-## 664 obs
+## 2700 obs
 ml_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Max_longevity_d)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -131,20 +131,20 @@ ml_dat <- Quota_plus_IUCN_Traits %>%
          log_ml = log10(Max_longevity_d),
          log_ml_z = (log_ml - mean(log_ml))/sd(log_ml))
 
-## 738 obs
+## 3095 obs
 cl_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Litter_clutch_size)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
          FYear = as.factor(Year),
          cl_z = (Litter_clutch_size - mean(Litter_clutch_size))/sd(Litter_clutch_size))
 
-## 760 obs
+## 3331 obs
 iucn_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(IUCN_code)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
          FYear = as.factor(Year))
 
-## 625 obs
+## 2934 obs
 hb_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(hab_breadth)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -378,7 +378,7 @@ final_trait_plt <- trait_plt +
 ggsave(path = "Outputs/Figures", final_trait_plt, filename = "Trait_plt.png",  bg = "white",
        device = "png", width = 25, height = 23, units = "cm")
 
-
+#### Coefs ####
 ## bm
 bm_coef_sum <- fixef(bm_mod, summary = FALSE) %>% as.data.frame() %>%
   mutate(log_bm_captive = log_bm_z,
@@ -389,10 +389,11 @@ bm_coef_sum <- fixef(bm_mod, summary = FALSE) %>% as.data.frame() %>%
   group_by(coef) %>%
   mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
          val = val/sd(bm_dat$log_bm),
-         type = "sd_raw",
+         type = "magnitude",
          trait = "bm") %>%
   group_by(coef, pd, type, trait) %>%
-  median_hdci(val, .width = .9)
+  median_hdci(val, .width = .9) %>%
+  mutate(median_perc = (exp(val) - 1)*100)
 
 
 ## ml
@@ -405,10 +406,11 @@ ml_coef_sum <- fixef(ml_mod, summary = FALSE) %>% as.data.frame() %>%
   group_by(coef) %>%
   mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
          val = val/sd(ml_dat$log_ml),
-         type = "sd_raw",
+         type = "magnitude",
          trait = "ml") %>%
   group_by(coef, pd, type, trait) %>%
-  median_hdci(val, .width = .9)
+  median_hdci(val, .width = .9) %>%
+  mutate(median_perc = (exp(val) - 1)*100)
 
 ## cl
 cl_coef_sum <- fixef(cl_mod, summary = FALSE) %>% as.data.frame() %>%
@@ -420,10 +422,11 @@ cl_coef_sum <- fixef(cl_mod, summary = FALSE) %>% as.data.frame() %>%
   group_by(coef) %>%
   mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
          val = val/sd(cl_dat$Litter_clutch_size),
-         type = "sd_raw",
+         type = "per unit",
          trait = "cl") %>%
   group_by(coef, pd, type, trait) %>%
-  median_hdci(val, .width = .9)
+  median_hdci(val, .width = .9) %>%
+  mutate(median_perc = (exp(val) - 1)*100)
 
 ## hb
 hb_coef_sum <- fixef(hb_mod, summary = FALSE) %>% as.data.frame() %>%
@@ -435,22 +438,24 @@ hb_coef_sum <- fixef(hb_mod, summary = FALSE) %>% as.data.frame() %>%
   group_by(coef) %>%
   mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
          val = val/sd(hb_dat$hab_breadth),
-         type = "sd_raw",
+         type = "per unit",
          trait = "hb") %>%
   group_by(coef, pd, type, trait) %>%
-  median_hdci(val, .width = .9)
+  median_hdci(val, .width = .9) %>%
+  mutate(median_perc = (exp(val) - 1)*100)
 
 ## iucn
 iucn_coef_sum <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
   pivot_longer(everything(), names_to = "coef", values_to = "val") %>%
   group_by(coef) %>%
   mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
-         type = "sd_raw",
+         type = "per unit",
          trait = "iucn") %>%
   group_by(coef, pd, type, trait) %>%
-  median_hdci(val, .width = .9)
+  median_hdci(val, .width = .9) %>%
+  mutate(median_perc = NA)
 
-iucn_contrast_sum <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
+iucn_contrast_sumW <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
   mutate(LC = exp(Intercept + Coarse_sourceWild),
          NT = exp(Intercept + Coarse_sourceWild + IUCN_codeNT + `IUCN_codeNT:Coarse_sourceWild`),
          VU = exp(Intercept + Coarse_sourceWild + IUCN_codeVU +`IUCN_codeVU:Coarse_sourceWild`),
@@ -466,8 +471,30 @@ iucn_contrast_sum <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
   select(LC_VU, LC_EN, LC_CR, NT_VU, NT_EN, NT_CR) %>%
   pivot_longer(everything(), names_to = "contr", values_to = "val") %>%
   group_by(contr) %>%
-  mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100)) %>%
-  group_by(contr, pd) %>%
+  mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
+         Source = "Wild") %>%
+  group_by(Source, contr, pd) %>%
+  median_hdci(val, .width = .9)
+
+iucn_contrast_sumC <- fixef(iucn_mod, summary = FALSE) %>% as.data.frame() %>%
+  mutate(LC = exp(Intercept),
+         NT = exp(Intercept + IUCN_codeNT),
+         VU = exp(Intercept + IUCN_codeVU),
+         EN = exp(Intercept + IUCN_codeEN),
+         CR = exp(Intercept + IUCN_codeCR),
+         NE = exp(Intercept + IUCN_codeNE),
+         LC_VU = LC - VU,
+         LC_EN = LC - EN,
+         LC_CR = LC - CR,
+         NT_VU = NT - VU,
+         NT_EN = NT - EN,
+         NT_CR = NT - CR) %>%
+  select(LC_VU, LC_EN, LC_CR, NT_VU, NT_EN, NT_CR) %>%
+  pivot_longer(everything(), names_to = "contr", values_to = "val") %>%
+  group_by(contr) %>%
+  mutate(pd = (sum(sign(val) == sign(median(val)))/n()*100),
+         Source = "Capt") %>%
+  group_by(Source, contr, pd) %>%
   median_hdci(val, .width = .9)
   
 
@@ -477,6 +504,7 @@ write.csv(cl_coef_sum, "Outputs/Summary/F4/cl_coef_sum.csv")
 write.csv(ml_coef_sum, "Outputs/Summary/F4/ml_coef_sum.csv")
 write.csv(hb_coef_sum, "Outputs/Summary/F4/hb_coef_sum.csv")
 write.csv(iucn_coef_sum, "Outputs/Summary/F4/iucn_coef_sum.csv")
+write.csv(rbind(iucn_contrast_sumW, iucn_contrast_sumC), "Outputs/Summary/F4/iucn_contrast_sum.csv")
 write.csv(rbind(bm_coef_sum, cl_coef_sum, ml_coef_sum, hb_coef_sum, iucn_coef_sum),
           "Outputs/Summary/F4/ALL_coef_sum.csv")
 
