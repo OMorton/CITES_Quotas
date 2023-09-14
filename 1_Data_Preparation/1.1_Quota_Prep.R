@@ -82,7 +82,9 @@ Quota_codes %>% filter(!is.na(notes), is.na(Term))
 ## issuance of permits under certain  conditions that cannot be verified from the available data.
 ## Similarly remove all unusable quotas
 ## 7761 
-Quota_codes <- Quota_codes %>% filter(quota >= 0, is.na(Usability_check), Taxa_Remove == 0) %>%
+Quota_codes <- Quota_codes %>% filter(Taxa_Remove == 0) %>% ## 7927
+  filter(quota >= 0) %>% ## 7830
+  filter(is.na(Usability_check)) %>% ## 7761
   mutate(Quota_type = case_when(Term != "FLAG" & Purpose != "FLAG" & Source != "FLAG" ~ "Term-Source-Purpose-specific",
                                 Term == "FLAG" & Purpose != "FLAG" & Source != "FLAG" ~ "Purpose-Source-specific",
                                 Term != "FLAG" & Purpose == "FLAG" & Source != "FLAG" ~ "Term-Source-specific",

@@ -115,7 +115,7 @@ ggplot(Quota_plus_IUCN_Traits, aes(hab_breadth, Quota + 1)) +
   #scale_x_log10() +
   scale_y_log10() + facet_wrap(~Coarse_source)
 
-## 3276 obs
+## 3118 obs
 bm_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Body_mass_g)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -123,7 +123,7 @@ bm_dat <- Quota_plus_IUCN_Traits %>%
          log_bm = log10(Body_mass_g),
          log_bm_z = (log_bm - mean(log_bm))/sd(log_bm))
 
-## 2700 obs
+## 2600 obs
 ml_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Max_longevity_d)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -131,20 +131,20 @@ ml_dat <- Quota_plus_IUCN_Traits %>%
          log_ml = log10(Max_longevity_d),
          log_ml_z = (log_ml - mean(log_ml))/sd(log_ml))
 
-## 3095 obs
+## 2958 obs
 cl_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(Litter_clutch_size)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
          FYear = as.factor(Year),
          cl_z = (Litter_clutch_size - mean(Litter_clutch_size))/sd(Litter_clutch_size))
 
-## 3331 obs
+## 3157 obs
 iucn_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(IUCN_code)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
          FYear = as.factor(Year))
 
-## 2934 obs
+## 2842 obs
 hb_dat <- Quota_plus_IUCN_Traits %>%
   filter(!is.na(hab_breadth)) %>%
   mutate(SYear = (Year - mean(Year))/sd(Year),
@@ -161,9 +161,9 @@ bm_mod <- brm(Quota ~ SYear + log_bm_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/bm_mod2.rds",
+              file = "Outputs/Models/bm_mod3.rds",
               data = bm_dat,
-              iter = 1000, warmup = 500, chains = 4, cores = 4)
+              iter = 1500, warmup = 750, chains = 4, cores = 4)
 
 cl_mod <- brm(Quota ~ SYear + cl_z + Coarse_source + Coarse_source:SYear +
                 Coarse_source:cl_z + 
@@ -174,7 +174,7 @@ cl_mod <- brm(Quota ~ SYear + cl_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/cl_mod2.rds",
+              file = "Outputs/Models/cl_mod3.rds",
               data = cl_dat,
               iter = 1500, warmup = 750, chains = 4, cores = 4)
 
@@ -187,9 +187,9 @@ iucn_mod <- brm(Quota ~ SYear + IUCN_code + Coarse_source + Coarse_source:SYear 
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/iucn_mod2.rds",
+              file = "Outputs/Models/iucn_mod3.rds",
               data = iucn_dat,
-              iter = 1500, warmup = 750, chains = 4, cores = 4)
+              iter = 2000, warmup = 1000, chains = 4, cores = 4)
 
 ml_mod <- brm(Quota ~ SYear + log_ml_z + Coarse_source + Coarse_source:SYear +
                 Coarse_source:log_ml_z + 
@@ -200,7 +200,7 @@ ml_mod <- brm(Quota ~ SYear + log_ml_z + Coarse_source + Coarse_source:SYear +
                         prior(normal(0, 2), class = "Intercept"),
                         prior(normal(0, 2), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/ml_mod2.rds",
+              file = "Outputs/Models/ml_mod3.rds",
               data = ml_dat,
               iter = 1500, warmup = 750, chains = 4, cores = 4)
 
@@ -212,11 +212,11 @@ hb_mod <- brm(Quota ~ SYear + hb_z + Coarse_source + Coarse_source:SYear +
               family = negbinomial(),
               prior = c(prior(normal(0, 2), class = "b"),
                         prior(normal(0, 2), class = "Intercept"),
-                        prior(normal(0, 2), class = "sd"),
+                        prior(normal(0, 1), class = "sd"),
                         prior(lkj(2), class = "cor")),
-              file = "Outputs/Models/hb_mod2.rds",
+              file = "Outputs/Models/hb_mod3.rds",
               data = hb_dat,
-              iter = 1500, warmup = 750, chains = 4, cores = 4)
+              iter = 3000, warmup = 1500, chains = 4, cores = 4)
 
 #### Interpretation ####
 

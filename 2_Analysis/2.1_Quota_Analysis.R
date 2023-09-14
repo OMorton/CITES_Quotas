@@ -47,10 +47,10 @@ Quota_clean_raw2 <- Quota_clean_raw %>% mutate(Party_for_join = case_when(grepl(
                             TRUE ~ `Party status`)) %>%
   left_join(Countries, by = c("ISO" = "iso_a2"))
 
-length(unique(Quota_trade_listing$Taxon)) ## 236
+length(unique(Quota_trade_listing$Taxon)) ## 227
 length(unique(Quota_trade_listing$Exporter)) ## 29
 
-length(unique(Quota_clean_raw$FullName)) ## 351
+length(unique(Quota_clean_raw$FullName)) ## 344
 length(unique(Quota_clean_raw$party)) ## 70
 
 #### Types of quotas ####
@@ -60,6 +60,7 @@ length(unique(Quota_clean_raw$FullName))
 length(unique(Quota_trade_listing$Taxon))
 length(unique(Quota_length$FullName))
 
+## 2 family, 5 genus, 333 species, 4 ssp
 Quota_clean_raw %>% group_by(Rank) %>% tally(n_distinct(FullName))
 
 Quota_types_sum <- Quota_clean_raw %>% group_by(Quota_type) %>% tally() %>%
@@ -151,6 +152,9 @@ write.csv(Quota_types_sum, "Outputs/Summary/F1/Quota_Types_sum.csv")
 
 #### Quota compliance ####
 
+nrow(Quota_trade_listing) ## 3158
+nrow(Quota_trade_listing %>% filter(Other_term_quotas_in_place == "No")) ## 2712
+
 ER_compliance <- compliance_plots(data = Quota_trade_listing, geo_data = Quota_trade_listing2, reporter = "ER") 
 IR_compliance <- compliance_plots(data = Quota_trade_listing, geo_data = Quota_trade_listing2, reporter = "IR")
 
@@ -163,7 +167,7 @@ ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png
 Ban_df <- ER_compliance$Ban_df
 Quota_df <- ER_compliance$Quota_df
 
-nrow(Quota_df) + nrow(Ban_df)
+nrow(Quota_df) + nrow(Ban_df) ## 2712
 
 Quota_df %>% filter(Traded == "No")
 Quota_map_df <- select(ER_compliance$Quota_map_df, -geometry)
@@ -187,14 +191,17 @@ Quota_series1 <- Quota_trade_listing %>%
   mutate(prior = lag(Year), diff = Year - prior) %>% 
   filter(all(diff == 1 | is.na(diff)), n() > 4)
 
+##86
 eligible_quotas <- Quota_series1 %>% 
   group_by(Taxon, Exporter, Quota_type, Term, Purpose, Source) %>% summarise(min = min(Year), max = max(Year))
 
 write.csv(eligible_quotas, "Data/CITES/Quotas/eligible_quotas_out.csv")
 
-eligible_quotas_plus <- read.csv("Data/CITES/Quotas/eligible_quotas_in.csv")
+eligible_quotas_plus <- read.csv("Data/CITES/Quotas/eligible_quotas_in.csv") %>%
+  select(-min,-max)
 
-eligible_quotas_final <- eligible_quotas_plus %>% 
+##69
+eligible_quotas_final <- eligible_quotas %>% left_join(eligible_quotas_plus) %>% 
   ## get how long the party was a member before hand and the species was listed to check there is a prior reporting period
   mutate(Party_prior = Party_status - min, Species_prior = Species_listed - min) %>%
   ## Keep only those that have at least 4 years listed but unquota'd 
@@ -223,7 +230,7 @@ Live_rept_trade_ER <- Live_rept_trade %>% filter(Reporter.type == "E")
 Live_rept_trade_IR <- Live_rept_trade %>% filter(Reporter.type == "I")
 
 
-## 89 Term source specific
+## 69 Term source specific
 TS_Sp_combo <- eligible_quotas_series2 %>% filter(Quota_type == "Term-Source-specific") %>%
   separate_rows(Source) %>%
   left_join(Live_rept_trade_ER, by = c("Taxon", "Exporter", "Term", "Year", "Source")) %>%
@@ -250,9 +257,9 @@ Centred_series <-  TS_Sp_combo %>% group_by(Taxon, Exporter, Quota_type, State) 
   mutate(FYear = as.factor(Year)) %>%
   unite("Taxon_exp", c("Taxon", "Exporter"),  remove = FALSE)
 
-length(unique(Centred_series$Taxon)) ## 72
+length(unique(Centred_series$Taxon)) ## 68
 length(unique(Centred_series$Exporter)) ## 12
-length(unique(Centred_series$Taxon_exp)) ## 73
+length(unique(Centred_series$Taxon_exp)) ## 69
 
 ## add the quota volumes to the listings
 Centred_series_quota <- Centred_series %>% filter(State == "bPost-quota-actual") %>%
@@ -288,7 +295,7 @@ Pre_Post_Quota_mod <- brm(bf(vol_sd ~ State + Year_cent + State:Year_cent + (1|E
                            prior(normal(0, 1), class = "Intercept"),
                            prior(normal(0, 1), class = "sd"),
                            prior(lkj(2), class = "cor")),
-                 file = "Outputs/Models/Pre_Post_Quotasd4.rds",
+                 file = "Outputs/Models/Pre_Post_Quotasd5.rds",
                  data = Centred_series_sd,
                  iter = 1000, warmup = 500, chains = 4, cores = 4)
 
@@ -396,7 +403,7 @@ abs_change_plt_Q <- ggplot(b1_quota, aes(reorder(Taxon, Order), coef,  colour = 
   geom_point() +
   geom_errorbar(aes(ymin = .lower, ymax = .upper), width = 0) +
   geom_hline(yintercept = 0, linetype = "dashed") + 
-  scale_color_manual(values = c("royalblue4","steelblue", "grey75", "coral", "tomato4" )) +
+  scale_color_manual(values = c("royalblue4", "grey75", "coral", "tomato4" )) +
   annotate(geom = "text", label = "Quota level", x = 2, y = 5, fontface = "bold", hjust = 0) +
   xlab("Quota (Taxon-exporter specific)") +
   ylab("Absolute change") +
@@ -502,7 +509,7 @@ Quota_changes <- Quota_clean_raw %>%
            Quota_type) %>%
   summarise(diff_quotas = n_distinct(quota), length = n())
 
-## 998
+## 945
 Quota_changes2 <- Quota_changes %>% filter(length > 1)
 length_dat <- Quota_changes%>% filter(length > 1) %>% group_by(length) %>% tally()
 
@@ -523,7 +530,7 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   ylab("Distinct quotas set") +
   theme_minimal(base_size = 12)
 
-## 498/998 quotas longer than a single year never change
+## 464/945 quotas longer than a single year never change
 Quota_changes2 %>% filter(diff_quotas == 1)
 
 
@@ -532,25 +539,25 @@ Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas,
                                                Changes_every_5_years = ifelse(freq >= 5, 1, 0),
                                                Changes_every_2_years = ifelse(freq >= 2, 1, 0))
 
-## 75 quotas updated every 10 or more years
-## 298 quotas updated every 5 or more years
+## 66 quotas updated every 10 or more years
+## 279 quotas updated every 5 or more years
 Quota_changes_sum2 <- Quota_changes_sum %>% ungroup() %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Changes_every_5_years = sum(Changes_every_5_years),
             Year10_prop = sum(Changes_every_10_years)/n() *100,
             Year5_prop = sum(Changes_every_5_years)/n() *100)
 
-Quota_changes_sum %>% filter(length >= 5) %>%
+Quota_changes_sum %>% filter(length >= 5) %>% ungroup() %>%
   summarise(Changes_every_5_years = sum(Changes_every_5_years),
             Year5_prop = sum(Changes_every_5_years)/n() *100,
             length = n())
 
-Quota_changes_sum %>% filter(length >= 10) %>%
+Quota_changes_sum %>% filter(length >= 10) %>% ungroup() %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Year10_prop = sum(Changes_every_10_years)/n() *100,
             length = n())
 
-## 79 are set yearly
+## 80 are set yearly
 Quota_changes2 %>% filter(diff_quotas == length)
 
 ggsave(path = "Outputs/SM", Quota_changes_fig, filename = "Quota_changes_fig.png",  bg = "white",
@@ -582,3 +589,9 @@ unique(Quota_traded_years_sum$Taxon)
 unique(Quota_traded_years_sum$Family)
 hist(Quota_traded_years_sum$diff_quotas)
 
+
+#### Quota but no trade ####
+Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>% 
+  group_by(Taxon, Exporter, Source, Purpose) %>% 
+  mutate(ID = cur_group_id()) %>%
+  filter(all(Volume == 0), all(Quota > 100))
