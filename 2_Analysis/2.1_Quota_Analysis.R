@@ -595,3 +595,25 @@ Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quota
   group_by(Taxon, Exporter, Source, Purpose) %>% 
   mutate(ID = cur_group_id()) %>%
   filter(all(Volume == 0), all(Quota > 100))
+
+
+#### ER and IR misalignment ####
+
+
+IR_breaches <- Quota_trade_listing %>% filter(Other_term_quotas_in_place == "No") %>% ## 2712
+  filter(Volume_IR > Quota, Volume <= Quota) %>% 
+  mutate(IR_perc = (Volume_IR/Quota *100)-100)
+
+length(unique(IR_breaches$Taxon)) ## 36 species
+range(IR_breaches$IR_perc, finite = 1) 
+
+IR_breach_out <- IR_breaches %>% 
+  arrange(-Perc_of_quota_IR) %>%
+  mutate(Perc_of_quota = round(Perc_of_quota, 1),
+         Perc_of_quota_IR = round(Perc_of_quota_IR, 1),
+         Perc = paste0(Volume," (", Perc_of_quota, "%)"),
+         Perc_IR = paste0(Volume_IR," (", Perc_of_quota_IR, "%)")) %>%
+  select(Taxon, Family, Exporter, Year, Quota, 
+         Perc, Perc_IR) 
+
+write.csv(IR_breach_out, "Outputs/SM/IR_quota_breaches.csv")
