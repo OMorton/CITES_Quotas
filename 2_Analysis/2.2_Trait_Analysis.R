@@ -15,6 +15,7 @@ library(tidybayes)
 Quota_trade_listing <- read.csv("Data/CITES/Quotas/Rept_Quota_trade_listing.csv")
 All_Listed_IUCN <- read.csv("Data/IUCN/ALL_REPT_ASSESSMENTS_series.csv")  
 Name_trait <- read.csv("Data/Traits/Etard_quota_names.csv")
+Quota_clean_raw <- read.csv("Data/CITES/Quotas/Quota_codes_raw_summary.csv")
 
 #### Data preparation ####
 
@@ -25,7 +26,31 @@ Quota_plus_IUCN <- Quota_trade_listing %>%
                                    Source %in% c("W", "R", "W, R") ~ "Wild",
                                    TRUE ~ Source)) %>%
   filter(Coarse_source != "I") %>%
-  mutate(IUCN_code = factor(IUCN_code, levels = c("LC", "NT", "VU", "EN", "CR", "NE")))
+  mutate(IUCN_code = factor(IUCN_code, levels = c("LC", "NT", "VU", "EN", "CR", "NE")),
+         Coarse_quota = case_when(Quota < 11 ~ "0 - 10",
+                                  Quota > 10 & Quota < 101 ~ "11 - 100",
+                                  Quota > 100 & Quota < 1001 ~ "101 - 1000",
+                                  Quota > 1000 & Quota < 10001 ~ "1001 - 10,000",
+                                  Quota > 10000 & Quota < 100001 ~ "10,001 - 100,000",
+                                  Quota > 100000 ~ ">100,000"),
+         Coarse_quota = factor(Coarse_quota, levels = c("0 - 10", "11 - 100", "101 - 1000",
+                                                        "1001 - 10,000", "10,001 - 100,000",
+                                                        ">100,000")))
+
+Quota_sum <- Quota_plus_IUCN %>% group_by(Coarse_source, Coarse_quota) %>% tally()
+
+CW_quota_sum_plt <- ggplot(Quota_sum, aes(Coarse_quota, n, fill = Coarse_source)) +
+  geom_col() +
+  scale_fill_manual(values = c("grey", "chartreuse4"))+
+  facet_wrap(~Coarse_source, scales = "free_y") +
+  ylab("Number of quotas") +
+  xlab("Quota size") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, vjust = .8),
+        strip.text = element_text(face = "bold"))
+
+ggsave(path = "Outputs/SM", CW_quota_sum_plt, filename = "Quota_cw_sum_plt.png",  bg = "white",
+       device = "png", width = 20, height = 15, units = "cm")
 
 ## Habitat breadth missing the most but we can recalculate it using more upto date assessments
 sp_for_habs <- Quota_plus_IUCN %>% select(IUCNName) %>% distinct()
