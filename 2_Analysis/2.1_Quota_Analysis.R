@@ -508,10 +508,38 @@ Quota_changes <- Quota_clean_raw %>%
            Purpose, Source, unit,
            Quota_type) %>%
   filter(all(quota > 0)) %>%
-  summarise(diff_quotas = n_distinct(quota), length = n())
+  mutate(Change = quota != lag(quota), Change = replace_na(Change, FALSE)) %>%
+  summarise(diff_quotas = sum(Change), length = n())
+
+Quota_changes_zero <- Quota_clean_raw %>% 
+  ## don't need to do that here as its possible to have two seperate quota series
+  ## for different terms (only for live checks is it problematic)
+  #filter(Other_term_quotas_in_place == "No") %>%
+  #filter(Overlapping_quotas == "No") %>%
+  group_by(party, Family, Genus, Order, Rank, FullName, Term, 
+           Purpose, Source, unit,
+           Quota_type, Overlapping_quotas, year) %>% 
+  summarise(quota = sum(quota)) %>%
+  group_by(party, Family, Genus, Order, Rank, FullName, Term, 
+           Purpose, Source, unit,
+           Quota_type, Overlapping_quotas) %>%
+  mutate(quota_id = cur_group_id()) %>%
+  group_by(quota_id, party, Rank, FullName, Term, 
+           Purpose, Source, unit,
+           Quota_type) %>%
+  filter(any(quota == 0))
 
 ## 673
 Quota_changes2 <- Quota_changes %>% filter(length > 1)
+Quota_changes_zero %>%
+  group_by(quota_id, party, Rank, FullName, Term, 
+           Purpose, Source, unit,
+           Quota_type) %>%
+  filter(all(quota == 0)) %>% reframe(diff_quotas = n_distinct(quota), length = n()) %>% filter(length > 1)
+
+## 272
+Quota_changes_zero %>% reframe(diff_quotas = n_distinct(quota), length = n()) %>% filter(length > 1)
+
 length_dat <- Quota_changes%>% filter(length > 1) %>% group_by(length) %>% tally()
 
 change_stat <- Quota_changes2 %>% group_by(length) %>% 
@@ -525,10 +553,10 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   geom_line(data = change_stat, aes(length, mean), colour = "darkblue") +
   geom_ribbon(data = change_stat, aes(y = mean, ymin = mean-sd, ymax = mean + sd), 
               fill = "darkblue", alpha = .1) +
-  geom_abline(intercept = 0, linetype = "longdash", size = 1, colour = "darkred") +
-  geom_abline(slope = .5, intercept = 0, linetype = "longdash", size = .75, colour = "darkred") +
-  geom_abline(slope = .2, intercept = 0, linetype = "longdash", size = .5, colour = "darkred") +
-  geom_abline(slope = .1, intercept = 0, linetype = "longdash", size = .25, colour = "darkred") +
+  geom_abline(intercept = -1, linetype = "longdash", size = 1, colour = "darkred") +
+  geom_abline(slope = .5, intercept = -1, linetype = "longdash", size = .75, colour = "darkred") +
+  geom_abline(slope = .2, intercept = -1, linetype = "longdash", size = .5, colour = "darkred") +
+  geom_abline(slope = .1, intercept = -1, linetype = "longdash", size = .25, colour = "darkred") +
   coord_cartesian(xlim = c(2, 26), ylim = c(0, 26)) +
   scale_x_continuous(breaks = c(2, 10, 20)) +
   annotate(geom = "text", fontface = "bold", label = "Change every year", x = 27, y = 27, hjust = 1.25) +
@@ -536,17 +564,17 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   annotate(geom = "text", fontface = "bold", label = "Change every 5th year", x = 27, y = 5.4, hjust = 1.25) +
   annotate(geom = "text", fontface = "bold", label = "Change every 10th year", x = 27, y = 2.7, hjust = 1.25) +
   xlab("Quota series length (years)") +
-  ylab("Distinct quotas set") +
+  ylab("Number of quota updates") +
   theme_minimal(base_size = 12)
 
 length_bb <- data.frame(length = 2:27)
 
-zero_updates_dat <- Quota_changes2 %>% mutate(updates = diff_quotas - 1) %>%
-  filter(updates == 0) %>% group_by(length) %>% tally() %>%
+zero_updates_dat <- Quota_changes2 %>%
+  filter(diff_quotas == 0) %>% group_by(length) %>% tally() %>%
   right_join(length_bb) %>% mutate(n = ifelse(is.na(n), 0, n))
 
 yearly_updates_dat <- Quota_changes2 %>%
-  filter(diff_quotas == length) %>% group_by(length) %>% tally() %>%
+  filter(diff_quotas+1 == length) %>% group_by(length) %>% tally() %>%
   right_join(length_bb) %>% mutate(n = ifelse(is.na(n), 0, n))
 
 yrly_plt <- ggplot(yearly_updates_dat, aes(length, n)) + 
@@ -562,19 +590,20 @@ never_plt <- ggplot(zero_updates_dat, aes(length, n)) +
   theme_minimal(base_size = 12)
 
 ## 255/673 quotas longer than a single year never change
-Quota_changes2 %>% filter(diff_quotas == 1)
+Quota_changes2 %>% filter(diff_quotas == 0)
 
 ## average updated ever 4 years
-Quota_changes2 %>% mutate(freq = length/diff_quotas)%>%
+Quota_changes2 %>% mutate(freq = diff_quotas/length) %>%
   ungroup() %>% summarise(mean(freq))
 
-Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas, 
-                                               Changes_every_10_years = ifelse(freq >= 10, 1, 0),
-                                               Changes_every_5_years = ifelse(freq >= 5, 1, 0),
-                                               Changes_every_2_years = ifelse(freq >= 2, 1, 0))
+Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas) %>%
+  filter(freq != Inf) %>% mutate(Changes_every_10_years = ifelse(freq >= 10, 1, 0),
+                                 Changes_every_5_years = ifelse(freq >= 5, 1, 0),
+                                 Changes_every_2_years = ifelse(freq >= 2, 1, 0))
+                                               
 
-## 54 quotas updated every 10 or more years
-## 206 quotas updated every 5 or more years
+## 43 quotas updated every 10 or more years
+## 131 quotas updated every 5 or more years
 Quota_changes_sum2 <- Quota_changes_sum %>% ungroup() %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Changes_every_5_years = sum(Changes_every_5_years),
@@ -591,8 +620,8 @@ Quota_changes_sum %>% filter(length >= 10) %>% ungroup() %>%
             Year10_prop = sum(Changes_every_10_years)/n() *100,
             length = n())
 
-## 76 are set yearly
-Quota_changes2 %>% filter(diff_quotas == length)
+## 79 are set yearly
+Quota_changes2 %>% filter(diff_quotas+1 == length)
 
 library(ggpubr)
 
@@ -601,8 +630,8 @@ Quota_change_arrange <- ggarrange(Quota_changes_fig,
                                   ncol = 2,
                                   labels = c("A.", ""), widths = c(1.75, 1))
 
-ggsave(path = "Outputs/SM", Quota_change_arrange, filename = "Quota_changes_fig.png",  bg = "white",
-       device = "png", width = 30, height = 20, units = "cm")
+ggsave(path = "Outputs/Figures", Quota_change_arrange, filename = "Quota_changes_fig.png",  bg = "white",
+       device = "png", width = 26, height = 18, units = "cm")
 
 
 Quota_traded_years_sum <- Quota_trade_listing %>% 
