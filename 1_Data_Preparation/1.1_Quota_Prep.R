@@ -6,7 +6,6 @@
 options(scipen=999)
 .libPaths("C:/Packages")
 
-library(brms)
 library(tidyverse)
 library(viridis)
 library(rredlist)

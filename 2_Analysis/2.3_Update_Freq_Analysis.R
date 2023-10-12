@@ -241,4 +241,6 @@ cor.test(Quota_traded_years_sum$traded_years, Quota_traded_years_sum$diff_quotas
 Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>% 
   group_by(Taxon, Exporter, Source, Purpose) %>% 
   mutate(ID = cur_group_id()) %>%
-  filter(all(Volume == 0), all(Quota > 100))
+  filter(all(Volume == 0))
+
+Quota_df %>% group_by(Taxon, Exporter, Source, Purpose) %>% tally()
