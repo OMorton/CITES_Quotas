@@ -3,7 +3,7 @@
 ################################
 
 options(scipen=999)
-.libPaths("C:/Packages")
+#.libPaths("C:/Packages")
 source("Functions.R")
 
 library(tidyverse)
@@ -62,6 +62,9 @@ length(unique(Quota_length$FullName))
 
 ## 2 family, 5 genus, 333 species, 4 ssp
 Quota_clean_raw %>% group_by(Rank) %>% tally(n_distinct(FullName))
+
+Order_sum <- Quota_clean_raw %>% group_by(Order) %>% tally()
+Family_sum <- Quota_clean_raw %>% group_by(Family, Order) %>% tally()
 
 Quota_types_sum <- Quota_clean_raw %>% group_by(Quota_type) %>% tally() %>%
   mutate(Quota_label = gsub("-specific", "", Quota_type),
@@ -149,6 +152,28 @@ write.csv(Quota_Purpose_sum, "Outputs/Summary/F1/Quota_Purpose_sum.csv")
 write.csv(Quota_Source_sum, "Outputs/Summary/F1/Quota_Source_sum.csv")
 write.csv(Quota_Term_sum, "Outputs/Summary/F1/Quota_Term_sum.csv")
 write.csv(Quota_types_sum, "Outputs/Summary/F1/Quota_Types_sum.csv")
+
+Order_plt <- ggplot(Order_sum, aes(reorder(Order, -n), n, fill = Order)) +
+  geom_col() +
+  xlab("Order") +ylab("Number of quotas") +
+  scale_fill_manual(values = c("chartreuse4", "brown4", "bisque3", "skyblue3")) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+Family_plt <- ggplot(Family_sum, aes(reorder(Family, -n), n, fill = Order)) +
+  geom_col() +
+  xlab("Family") +ylab("Number of quotas") +
+  scale_fill_manual(values = c("chartreuse4", "brown4", "bisque3", "skyblue3")) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+Taxo_plt <- ggarrange(Order_plt, Family_plt, labels = c("A.", "B."),
+                                   ncol = 2, widths = c(1, 3), align = "hv")
+
+ggsave(path = "Outputs/SM", Taxo_plt, filename = "Taxo_sum_plt.png",  bg = "white",
+       device = "png", width = 20, height = 12, units = "cm")
 
 #### Quota compliance ####
 
