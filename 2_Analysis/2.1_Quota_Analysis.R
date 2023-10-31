@@ -332,16 +332,43 @@ PP_lines_sum <- PP_mod_sum  %>%
   median_hdci(.epred, .width = .9) %>%
   unite("ID", c("Taxon_exp", "State"), remove = FALSE)
 
-ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
+PP_all_sp_fig1 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
                          fill = State, group = ID)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha= .3) +
-  geom_point(aes(y = vol_sd)) +
-  facet_wrap(~Taxon_exp, scales = "free", ncol = 6) +
-  #scale_fill_manual(values = c("grey75", "royalblue4")) +
-  #scale_colour_manual(values = c("grey75", "royalblue4")) +
+  #geom_point(aes(y = vol_sd)) +
+  ggforce::facet_wrap_paginate(~Taxon_exp, scales = "free", ncol = 5, nrow = 7, page = 1) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = c("grey75","black", "royalblue4"), 
+                    labels = c("Pre-quota volume", "Post-quota volume", "Quota level")) +
+  scale_colour_manual(values = c("grey75", "black", "royalblue4"), 
+                      labels = c("Pre-quota volume", "Post-quota volume", "Quota level")) +
+  xlab("Times (years)") + ylab("Estimated volume (SD scale)") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "bottom")
+
+ggsave(path = "Outputs/SM", PP_all_sp_fig, filename = "PP_all_species.png",  bg = "white",
+       device = "png", width = 25, height = 30, units = "cm")
+
+PP_all_sp_fig2 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
+                                           fill = State, group = ID)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha= .3) +
+  #geom_point(aes(y = vol_sd)) +
+  ggforce::facet_wrap_paginate(~Taxon_exp, scales = "free", ncol = 5, nrow = 7, page = 2) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = c("grey75","black", "royalblue4"), 
+                    labels = c("Pre-quota volume", "Post-quota volume", "Quota level")) +
+  scale_colour_manual(values = c("grey75", "black", "royalblue4"), 
+                      labels = c("Pre-quota volume", "Post-quota volume", "Quota level")) +
+  xlab("Times (years)") + ylab("Estimated volume (SD scale)") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+ggsave(path = "Outputs/SM", PP_all_sp_fig1, filename = "PP_all_species_p1.png",  bg = "white",
+       device = "png", width = 25, height = 25, units = "cm")
+ggsave(path = "Outputs/SM", PP_all_sp_fig2, filename = "PP_all_species_p2.png",  bg = "white",
+       device = "png", width = 25, height = 25, units = "cm")
 
 new_dat <- data.frame(Year_cent = c(-10:10, 0:10),
                       State = c(rep("aPre-quota", 10), rep("bPost-quota-actual", 11),
