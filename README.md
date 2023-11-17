@@ -8,7 +8,7 @@ The output of this is in submission as **Paper quotas:  High compliance but inef
 
 ***1.1_Quota_Prep.R*** Classifies and processes the raw CITES quotas and then compiles relevant trade data to assess each quota against. Also appends trait data and temporally correct IUCN assessments.
 
-***1.2_Quota_Prep_SUpplementaryData.R*** Minimally used to write out data.
+***1.2_Quota_Prep_SupplementaryData.R*** Minimally used to write out data.
 
 
 #### 2. Analysis
