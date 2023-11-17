@@ -243,4 +243,4 @@ Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quota
   mutate(ID = cur_group_id()) %>%
   filter(all(Volume == 0))
 
-Quota_df %>% group_by(Taxon, Exporter, Source, Purpose) %>% tally()
+check <- Quota_df %>% group_by(Taxon, Exporter, Source, Purpose) %>% tally()

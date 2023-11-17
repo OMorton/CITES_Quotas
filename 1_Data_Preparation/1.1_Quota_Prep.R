@@ -4,7 +4,7 @@
 ################################
 
 options(scipen=999)
-.libPaths("C:/Packages")
+#.libPaths("C:/Packages")
 
 library(tidyverse)
 library(viridis)

@@ -98,18 +98,18 @@ Quota_Purpose_sum <- Quota_clean_raw %>% group_by(Purpose) %>% tally() %>%
                           Purpose_label != "ALL" & Purpose_label != "None" ~ "Other"))
 
 ## Plotting
-Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = Type)) +
+Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = Quota_type)) +
   geom_col() +
   scale_x_discrete(limits = c("Source",
                               "Purpose-Source", "Term-Source",
                               "Term-Source-Purpose")) +
   geom_text(aes(label = paste0(Prop, "%")), vjust = -.5, fontface = "bold") +
-  scale_fill_manual(values = c("grey")) +
+  scale_fill_manual(values = c( "tan3","chartreuse4", "mediumorchid", "cornflowerblue")) +
   coord_cartesian(ylim = c(0, 6000), expand = FALSE) +
   xlab("Quota specificity") +
   ylab("Number of quotas") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 35, vjust = 0.4), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.4, size = 11), legend.position = "none")
 
 Term_plt <- ggplot(Quota_Term_sum, aes(n, reorder(Term_label, n), fill = Type)) +
   geom_col() +
@@ -336,7 +336,7 @@ PP_all_sp_fig1 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
                          fill = State, group = ID)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha= .3) +
-  #geom_point(aes(y = vol_sd)) +
+  geom_point(aes(y = vol_sd)) +
   ggforce::facet_wrap_paginate(~Taxon_exp, scales = "free", ncol = 5, nrow = 7, page = 1) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_fill_manual(values = c("grey75","black", "royalblue4"), 
@@ -354,7 +354,7 @@ PP_all_sp_fig2 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
                                            fill = State, group = ID)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha= .3) +
-  #geom_point(aes(y = vol_sd)) +
+  geom_point(aes(y = vol_sd)) +
   ggforce::facet_wrap_paginate(~Taxon_exp, scales = "free", ncol = 5, nrow = 7, page = 2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_fill_manual(values = c("grey75","black", "royalblue4"), 
@@ -386,6 +386,12 @@ Fixef_pred_sum <- new_dat %>%
   group_by(Year_cent, State) %>%
   median_hdci(.epred, .width = .9)
 
+fixef(Pre_Post_Quota_mod, summary = FALSE) %>% as.data.frame() %>%
+  mutate(Quota_actual_contr = StatebPostMquotaMquotas - StatebPostMquotaMactual,
+         pd = (sum(sign(Quota_actual_contr) == sign(median(Quota_actual_contr)))/n()*100)) %>%
+  group_by(pd) %>%
+  median_hdci(Quota_actual_contr, .width = .9)
+
 average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred, 
                                                 colour = State, fill = State)) +
   geom_line(aes(Year_cent, .epred), size = 1) +
@@ -401,8 +407,319 @@ average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred,
   theme_minimal() +
   theme(axis.title.y = element_markdown(), legend.position = "none")
   
+
 Abs_change_coef <- coef(Pre_Post_Quota_mod, summary = FALSE)$Taxon[,,c("StatebPostMquotaMactual", 
-                                                                              "StatebPostMquotaMquotas")] %>% 
+                                                                       "StatebPostMquotaMquotas")] %>% 
+  as.data.frame() %>%
+  pivot_longer(everything(), names_to = "Taxon", values_to = "coef") %>%
+  separate(Taxon, c("Taxon", "Trt"), sep = "\\.") %>%
+  group_by(Taxon, Trt) %>%
+  mutate(pd = (sum(sign(coef) == sign(median(coef)))/n()*100)) %>%
+  group_by(Taxon,Trt, pd) %>%
+  median_hdci(coef, .width = .9) %>%
+  mutate(Interpretation = case_when(pd < 95 ~ "Uncertain",
+                                    pd >= 95 & pd < 97.5 & coef > 0 ~ "Uncertain Increase",
+                                    pd >= 95 & pd < 97.5 & coef < 0 ~ "Uncertain Decrease",
+                                    pd >= 97.5 & coef > 0 ~ "Increase",
+                                    pd >= 97.5 & coef < 0 ~ "Decrease"),
+         Interpretation = factor(Interpretation, levels = c("Decrease", "Uncertain Decrease", 
+                                                            "Uncertain", "Uncertain Increase", "Increase")))
+
+Trend_change_coef <- coef(Pre_Post_Quota_mod, summary = FALSE)$Taxon[,,c("Year_cent",
+                                                                         "StatebPostMquotaMactual:Year_cent",
+                                                                         "StatebPostMquotaMquotas:Year_cent")] %>%
+  as.data.frame() %>%
+  pivot_longer(everything(), names_to = "Taxon", values_to = "coef") %>%
+  separate(Taxon, c("Taxon", "Trt"), sep = "\\.") %>%
+  pivot_wider(names_from = "Trt", values_from = "coef") %>%
+  unnest(cols = c(2:4)) %>%
+  mutate(Pre_change = Year_cent, 
+         Post_actual = Year_cent + `StatebPostMquotaMactual:Year_cent`,
+         Post_quota = Year_cent + `StatebPostMquotaMquotas:Year_cent`,
+         Taxon = Taxon,
+         .keep = "none") %>%
+  pivot_longer(!Taxon, names_to = "Trt", values_to = "coef") %>%
+  group_by(Taxon, Trt) %>%
+  mutate(pd = (sum(sign(coef) == sign(median(coef)))/n()*100)) %>%
+  group_by(Taxon,Trt, pd) %>%
+  median_hdci(coef, .width = .9) %>%
+  mutate(Interpretation = case_when(pd < 95 ~ "Uncertain",
+                                    pd >= 95 & pd < 97.5 & coef > 0 ~ "Uncertain Increase",
+                                    pd >= 95 & pd < 97.5 & coef < 0 ~ "Uncertain Decrease",
+                                    pd >= 97.5 & coef > 0 ~ "Increase",
+                                    pd >= 97.5 & coef < 0 ~ "Decrease"),
+         Interpretation = factor(Interpretation, levels = c("Decrease", "Uncertain Decrease", 
+                                                            "Uncertain", "Uncertain Increase", "Increase")))
+
+
+## Relationship classifying
+Trend_sum <- Trend_change_coef %>% select(Taxon, Trt, Interpretation) %>% 
+  mutate(Interpretation = gsub(" Decrease", "", Interpretation),
+         Interpretation = gsub(" Increase", "", Interpretation)) %>%
+  pivot_wider(id_cols = Taxon, names_from = "Trt", values_from = "Interpretation") %>%
+  rename("Post_actual_trend" = 2, "Post_quota_trend" = 3, "Pre_change_trend" = 4)
+
+Abs_sum <- Abs_change_coef %>% select(Taxon, Trt, Interpretation) %>% 
+  mutate(Interpretation = gsub(" Decrease", "", Interpretation),
+         Interpretation = gsub(" Increase", "", Interpretation)) %>%  pivot_wider(id_cols = Taxon, names_from = "Trt", values_from = "Interpretation") %>%
+  rename("Post_actual_absolute" = 2, "Post_quota_absolute" = 3)
+
+All_sum <- left_join(Trend_sum, Abs_sum)
+
+All_sum %>% group_by(Pre_change_trend, Post_quota_trend, Post_quota_absolute) %>% tally()
+All_sum %>% group_by(Pre_change_trend, Post_actual_trend, Post_actual_absolute) %>% tally()
+
+quota_summary <- All_sum %>%
+  mutate(Class = case_when(Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Increase" ~ "Step increase only",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Decrease" ~ "Step decrease only",
+                           Pre_change_trend == "Decrease" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Uncertain" ~ "Decreasing to plateau",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Decrease" ~ "Step decrease only",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Uncertain" ~ "Uncertain",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Decrease"&
+                             Post_quota_absolute == "Increase" ~ "Step increase, subsequent decline",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Increase"&
+                             Post_quota_absolute == "Uncertain" ~ "Increases from plateau",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_quota_trend == "Increase"&
+                             Post_quota_absolute == "Increase" ~ "Post-quota temporal and step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Uncertain" ~ "Increases to plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Increase" ~ "Increases to elevated plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Decrease" ~ "Increases to reduced plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Increase"&
+                             Post_quota_absolute == "Increase" ~ "Continuous temporal increase, step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Increase"&
+                             Post_quota_absolute == "Decrease" ~ "Continuous temporal increase, step decrease",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Decrease"&
+                             Post_quota_absolute == "Uncertain" ~ "Trend shift, increase to decrease",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Decrease"&
+                             Post_quota_absolute == "Increase" ~ "Trend shift, increase to decrease, with step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_quota_trend == "Decrease"&
+                             Post_quota_absolute == "Decrease" ~ "Trend shift, increase to decrease, with step decrease",
+                           Pre_change_trend == "Decrease" & 
+                             Post_quota_trend == "Uncertain"&
+                             Post_quota_absolute == "Increase" ~ "Temporal decrease with elevated plateau",
+                           Pre_change_trend == "Decrease" & 
+                             Post_quota_trend == "Decrease"&
+                             Post_quota_absolute == "Increase" ~ "Continuous temporal decrease, step increase"),
+         Change_type = case_when(Post_quota_absolute == "Uncertain" & 
+                                   Post_quota_trend == "Uncertain" & Pre_change_trend == "Uncertain" ~
+                                   "Flat",
+                                 Post_quota_absolute != "Uncertain" & 
+                                   Post_quota_trend == "Uncertain" & Pre_change_trend == "Uncertain" ~
+                                   "Step-change only",
+                                 Post_quota_absolute != "Uncertain" & 
+                                   (Post_quota_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
+                                   "Step and trend change",
+                                 Post_quota_absolute == "Uncertain" & 
+                                   (Post_quota_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
+                                   "Trend-change only"))
+
+quota_summary2 <- quota_summary %>% group_by(Class,Change_type) %>% tally() %>%
+  mutate(Type = "Quota")
+
+Actual_summary <- All_sum %>%
+  mutate(Class = case_when(Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Increase" ~ "Step increase only",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Uncertain" ~ "Decreasing from plateau",
+                           Pre_change_trend == "Decrease" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Uncertain" ~ "Decreasing to plateau",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Decrease" ~ "Step decrease only",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Uncertain" ~ "Uncertain",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Increase" ~ "Step increase, subsequent decline",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Increase"&
+                             Post_actual_absolute == "Uncertain" ~ "Increases from plateau",
+                           Pre_change_trend == "Uncertain" & 
+                             Post_actual_trend == "Increase"&
+                             Post_actual_absolute == "Increase" ~ "Post-quota temporal and step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Uncertain" ~ "Increases to plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Increase" ~ "Increases to elevated plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Decrease" ~ "Increases to reduced plateau",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Increase"&
+                             Post_actual_absolute == "Increase" ~ "Continuous temporal increase, step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Increase"&
+                             Post_actual_absolute == "Decrease" ~ "Continuous temporal increase, step decrease",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Uncertain" ~ "Trend shift, increase to decrease",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Increase" ~ "Trend shift, increase to decrease, with step increase",
+                           Pre_change_trend == "Increase" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Decrease" ~ "Trend shift, increase to decrease, with step decrease",
+                           Pre_change_trend == "Decrease" & 
+                             Post_actual_trend == "Uncertain"&
+                             Post_actual_absolute == "Increase" ~ "Temporal decrease with elevated plateau",
+                           Pre_change_trend == "Decrease" & 
+                             Post_actual_trend == "Decrease"&
+                             Post_actual_absolute == "Increase" ~ "Continuous temporal decrease, step increase"),
+         Change_type = case_when(Post_actual_absolute == "Uncertain" & 
+                                   Post_actual_trend == "Uncertain" & Pre_change_trend == "Uncertain" ~
+                                   "Flat",
+                                 Post_quota_absolute != "Uncertain" & 
+                                   Post_actual_trend == "Uncertain" & Pre_change_trend == "Uncertain" ~
+                                   "Step-change only",
+                                 Post_actual_absolute != "Uncertain" & 
+                                   (Post_actual_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
+                                   "Step and trend change",
+                                 Post_actual_absolute == "Uncertain" & 
+                                   (Post_actual_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
+                                   "Trend-change only"))
+
+Actual_summary2 <- Actual_summary %>% group_by(Class,Change_type) %>% tally() %>%
+  mutate(Type = "Actual")
+
+All_summary <- rbind(quota_summary2, Actual_summary2)
+
+All_summary_exp <- expand.grid(Class = unique(All_summary$Class), Type = unique(All_summary$Type)) %>%
+  left_join(distinct(select(All_summary, Change_type, Class))) %>%
+  left_join(All_summary) %>%
+  rbind(data.frame(Class = c("Step decrease only"), Type = c("Quota", "Actual"),
+                   Change_type = "Step-change only", n = NA)) %>%
+  mutate(n = ifelse(is.na(n), 0, n),
+         Change_type = factor(Change_type, 
+                              levels = c("Flat", "Step-change only", "Trend-change only",
+                                         "Step and trend change")),
+         Class = factor(Class, levels = c("Uncertain", 
+                                          "Step increase only", "Step decrease only",
+                                          "Increases from plateau", "Increases to plateau",
+                                          "Trend shift, increase to decrease",
+                                          "Decreasing from plateau", "Decreasing to plateau",
+                                          "Continuous temporal decrease, step increase",
+                                          "Continuous temporal increase, step increase",
+                                          "Continuous temporal increase, step decrease",
+                                          "Increases to elevated plateau",
+                                          "Increases to reduced plateau",
+                                          "Post-quota temporal and step increase",
+                                          "Step increase, subsequent decline",
+                                          "Temporal decrease with elevated plateau",
+                                          "Trend shift, increase to decrease, with step decrease",
+                                          "Trend shift, increase to decrease, with step increase"))) %>%
+  group_by(Type) %>% arrange(Type, Change_type, Class) %>% 
+  mutate(plot_order = 1:n(),
+         perc = n/69 *100)
+
+
+
+p_quota <- make_concept(size = 0.5, col = "dodgerblue")
+p_actual <- make_concept(size = 0.5, col = "grey")
+
+library(ggpubr)
+
+empty <- ggplot() + theme_void()
+concept_quota_figs <- ggarrange(empty, p_quota$p1, p_quota$p2, p_quota$p3, p_quota$p4,
+                                p_quota$p5, p_quota$p6, p_quota$p7, p_quota$p8, 
+                                p_quota$p9, p_quota$p10, p_quota$p11, p_quota$p12, 
+                                p_quota$p13, p_quota$p14, p_quota$p15, p_quota$p16,
+                                p_quota$p17, p_quota$p18,empty,
+                                ncol = 20, widths = c(0.9, rep(1, 18), 0.2))
+
+concept_actual_figs <- ggarrange(empty, p_actual$p1, p_actual$p2, p_actual$p3, p_actual$p4,
+                                 p_actual$p5, p_actual$p6, p_actual$p7, p_actual$p8, 
+                                 p_actual$p9, p_actual$p10, p_actual$p11, p_actual$p12, 
+                                 p_actual$p13, p_actual$p14, p_actual$p15, p_actual$p16,
+                                 p_actual$p17, p_actual$p18,
+                                 ncol = 20, widths = c(0.9, rep(1, 18), 0.2))
+
+Tally_quota <- ggplot(filter(All_summary_exp, Type == "Quota"), 
+                      aes(factor(plot_order), perc)) +
+  geom_col(fill = "dodgerblue") +
+  ylab("Percentage of quota series") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+
+Tally_actual <- ggplot(filter(All_summary_exp, Type == "Actual"), 
+                       aes(factor(plot_order), perc)) +
+  geom_col(fill = "grey") +
+  ylab("Percentage of quota series") +
+  theme_classic(base_size = 12) +
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+
+labels <- ggplot() +
+  geom_segment(aes(x = 1, xend = 18, y = 1, yend = 1)) +
+  geom_segment(aes(x = 1, xend = 1, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 2, xend = 2, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 4, xend = 4, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 9, xend = 9, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 18, xend = 18, y = 1, yend = 1.1)) +
+  annotate(geom = "text", y = 0.9, x = 14, label = "Step and \n trend change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 6.5, label = "Trend change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 3, label = "Step change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 1.5, label = "None", size = 4, hjust = 0.5, vjust = 1) +
+  coord_cartesian(ylim = c(.25, 1.15), xlim = c(0, 18), expand = FALSE) +
+  theme_void() +
+  theme(axis.title.y = element_blank())
+
+labels_arr <- ggarrange(empty, labels,empty, widths = c(.1, 18,0.1), nrow = 1)
+
+concept_arr <- ggarrange(empty, 
+                         Tally_quota,  concept_quota_figs,
+                         empty,
+                         Tally_actual,concept_actual_figs, 
+                         labels_arr,  
+                         heights = c(0.5, 5, 1.25, 0.5, 5, 1.25, 2), nrow = 7,
+                         labels = c("B. Post-quota quota levels", "", "", 
+                                    "C. Post-quota traded volumes", "", "", ""),
+                         hjust = 0)
+
+PP_quota_plt2 <- ggarrange(average_quota_plt,concept_arr, nrow = 2, labels = c("A.", ""),
+                           heights = c(1, 3))
+
+ggsave(path = "Outputs/Figures", PP_quota_plt2, filename = "PP_quota_Horiz.png",  bg = "white",
+       device = "png", width = 25, height = 25, units = "cm")
+ggsave(path = "Outputs/SM", concept_quota_figs, filename = "Concept_rels.png",  bg = "white",
+       device = "png", width = 2.5, height = 25, units = "cm")
+write.csv(All_summary_exp, "Outputs/Summary/F3/Trend_summary.csv")
+write.csv(Actual_summary, "Outputs/Summary/F3/Actual_trend_quotas.csv")
+write.csv(quota_summary, "Outputs/Summary/F3/Quota_trend_quotas.csv")
+
+
+#### PP SOM plots ####
+
+Abs_change_coef <- coef(Pre_Post_Quota_mod, summary = FALSE)$Taxon[,,c("StatebPostMquotaMactual", 
+                                                                       "StatebPostMquotaMquotas")] %>% 
   as.data.frame() %>%
   pivot_longer(everything(), names_to = "Taxon", values_to = "coef") %>%
   separate(Taxon, c("Taxon", "Trt"), sep = "\\.") %>%
@@ -419,16 +736,16 @@ Abs_change_coef <- coef(Pre_Post_Quota_mod, summary = FALSE)$Taxon[,,c("StatebPo
                                                             "Uncertain", "Uncertain Increase", "Increase")))
 
 b1_quota <- Abs_change_coef %>% filter(Trt == "StatebPostMquotaMquotas") %>% arrange(coef) %>%
-         mutate(Order = 1:n(), 
-               Trt = "b1_Quota")
+  mutate(Order = 1:n(), 
+         Trt = "b1_Quota")
 b2_actual <- Abs_change_coef %>% filter(Trt == "StatebPostMquotaMactual") %>% 
-        left_join(select(b1_quota, Taxon, Order))%>%
-         mutate(Trt = "b2_Actual")
+  left_join(select(b1_quota, Taxon, Order))%>%
+  mutate(Trt = "b2_Actual")
 
 
 
 Trend_change_coef <- coef(Pre_Post_Quota_mod, summary = FALSE)$Taxon[,,c("StatebPostMquotaMactual:Year_cent",
-                                                                                "StatebPostMquotaMquotas:Year_cent")] %>%
+                                                                         "StatebPostMquotaMquotas:Year_cent")] %>%
   as.data.frame() %>%
   pivot_longer(everything(), names_to = "Taxon", values_to = "coef") %>%
   separate(Taxon, c("Taxon", "Trt"), sep = "\\.") %>%
@@ -496,9 +813,9 @@ trend_change_plt_A <- ggplot(b2_actual_trend, aes(reorder(Taxon, Order), coef,  
   theme(axis.text.x = element_blank(), legend.position = "none", axis.title.y = element_markdown())
 
 abs_concept <- data.frame(period = c(rep("pre", 5), rep("post_neg", 5), rep("post_pos", 5)), time = c(1:5, 6:10, 6:10),
-           y = c(rep(5, 5), rep(3, 5), rep(7, 5)))
+                          y = c(rep(5, 5), rep(3, 5), rep(7, 5)))
 trend_concept <- data.frame(period = c(rep("pre", 5), rep("post_neg", 5), rep("post_pos", 5)), time = c(1:5, 6:10, 6:10),
-                          y = c(rep(5, 5), 4.5, 4, 3.5, 3, 2.5, 5.5, 6, 6.5, 7, 7.5))
+                            y = c(rep(5, 5), 4.5, 4, 3.5, 3, 2.5, 5.5, 6, 6.5, 7, 7.5))
 
 abs_concept_plt <- ggplot(abs_concept, aes(time, y, colour = period)) +
   geom_line(size = 1) +
@@ -519,18 +836,16 @@ trend_concept_plt <- ggplot(trend_concept, aes(time, y, colour = period)) +
   theme(legend.position = "none", axis.text = element_blank())
 
 
-PP_quota_plt <- ggarrange(average_quota_plt, 
-                          ggarrange(
-                          ggarrange(abs_concept_plt, trend_concept_plt, labels = c("B.", "E."),
-                                    nrow = 2),
-                          ggarrange(abs_change_plt_Q, abs_change_plt_A,
-                                    trend_change_plt_Q, trend_change_plt_A, 
-                                    nrow = 4, labels = c("C.", "D.", "F.", "G."), align = "hv"),
-                          ncol = 2, widths= c(.6, 1)),
-                          labels = c("A.", ""), heights =  c(.4, 1), nrow = 2)
-                                    
+PP_quota_plt <- ggarrange(
+                            ggarrange(abs_concept_plt, trend_concept_plt, labels = c("A.", "D."),
+                                      nrow = 2),
+                            ggarrange(abs_change_plt_Q, abs_change_plt_A,
+                                      trend_change_plt_Q, trend_change_plt_A, 
+                                      nrow = 4, labels = c("B.", "C.", "E.", "F."), align = "hv"),
+                            ncol = 2, widths= c(.6, 1))
 
-ggsave(path = "Outputs/Figures", PP_quota_plt, filename = "PP_quota.png",  bg = "white",
+
+ggsave(path = "Outputs/SM", PP_quota_plt, filename = "PP_quota_species.png",  bg = "white",
        device = "png", width = 25, height = 25, units = "cm")
 
 write.csv(Centred_series_sd, "Outputs/Summary/F3/Model_fitting_data.csv")
@@ -538,10 +853,6 @@ write.csv(Trend_change_coef, "Outputs/Summary/F3/Trend_change_coef.csv")
 write.csv(Abs_change_coef, "Outputs/Summary/F3/Abs_change_coef.csv")
 write.csv(fixf_coef_sum, "Outputs/Summary/F3/fixf_coef_sum.csv")
 write.csv(Centred_series_sd, "Outputs/Summary/F3/fitting_data.csv")
-
-
-
-
 
 
 #### ER and IR misalignment ####
@@ -562,5 +873,8 @@ IR_breach_out <- IR_breaches %>%
          Perc_IR = paste0(Volume_IR," (", Perc_of_quota_IR, "%)")) %>%
   select(Taxon, Family, Exporter, Year, Quota, 
          Perc, Perc_IR) 
+
+## 80904
+IR_breaches %>% mutate(IR_breach = Volume_IR - Quota) %>% summarise(sum(IR_breach))
 
 write.csv(IR_breach_out, "Outputs/SM/IR_quota_breaches.csv")
