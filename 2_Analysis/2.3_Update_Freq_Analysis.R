@@ -25,7 +25,6 @@ iucn_match <- left_join(iucnames, all_IUCN_series)%>%
   select(Taxon, matching_name, Year, Int_trade_thr_L, IUCN_code)
 
 #### Data prep ####
-
 Quota_changes <- Quota_clean_raw %>% 
   left_join(iucn_match, by = c("FullName" = "Taxon", "year" = "Year")) %>%
   ## don't need to do that here as its possible to have two seperate quota series
@@ -34,23 +33,19 @@ Quota_changes <- Quota_clean_raw %>%
   #filter(Overlapping_quotas == "No") %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Overlapping_quotas, year, IUCN_code, Int_trade_thr_L) %>% 
+           Quota_type, year, IUCN_code) %>% 
   summarise(quota = sum(quota)) %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Overlapping_quotas) %>%
+           Quota_type) %>%
   mutate(quota_id = cur_group_id()) %>%
   group_by(quota_id, party, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Int_trade_thr_L) %>%
+           Quota_type) %>%
   filter(all(quota > 0)) %>%
   mutate(Change = quota != lag(quota), Change = replace_na(Change, FALSE)) %>%
   summarise(diff_quotas = sum(Change), length = n(), iucn_changes = length(unique(IUCN_code)))
-#%>% 
- # left_join(iucn_2023_match, by = c("FullName" = "Taxon")) %>%
-  #mutate(thr_grp = case_when(IUCN_thr == "Thr" & Int_trade_thr_L == "Yes" ~ "Globally Thr & trade Thr",
-   #                          IUCN_thr == "Thr" & Int_trade_thr_L == "No" ~ "Globally Thr",
-    #                         IUCN_thr == "NonThr" & Int_trade_thr_L == "Yes" ~ "Trade Thr"))
+
 
 Quota_changes_zero <- Quota_clean_raw %>% 
   ## don't need to do that here as its possible to have two seperate quota series
@@ -59,20 +54,20 @@ Quota_changes_zero <- Quota_clean_raw %>%
   #filter(Overlapping_quotas == "No") %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Overlapping_quotas, year) %>% 
+           Quota_type, year) %>% 
   summarise(quota = sum(quota)) %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Overlapping_quotas) %>%
+           Quota_type) %>%
   mutate(quota_id = cur_group_id()) %>%
   group_by(quota_id, party, Rank, FullName, Term, 
            Purpose, Source, unit,
            Quota_type) %>%
   filter(any(quota == 0))
 
-## 673
+## 624
 Quota_changes2 <- Quota_changes %>% filter(length > 1) %>%
-  left_join(iucn_2023_match, by = c("FullName" = "Taxon"))
+  left_join(IUCN_2023, by = c("FullName" = "Taxon"))
 
 Quota_changes_zero %>%
   group_by(quota_id, party, Rank, FullName, Term, 
@@ -80,7 +75,7 @@ Quota_changes_zero %>%
            Quota_type) %>%
   filter(all(quota == 0)) %>% reframe(diff_quotas = n_distinct(quota), length = n()) %>% filter(length > 1)
 
-## 272
+## 264
 Quota_changes_zero %>% reframe(diff_quotas = n_distinct(quota), length = n()) %>% filter(length > 1)
 
 length_dat <- Quota_changes%>% filter(length > 1) %>% group_by(length) %>% tally()
@@ -100,7 +95,7 @@ mod_change <- brm(bf(diff_quotas ~ Intercept +
                     prior(normal(1, 2), nlpar = "slope1") +
                     prior(normal(1, 2), nlpar = "slope2") +
                     prior(normal(10, 5), nlpar = "change"),
-                  file = "Outputs/Models/update_changepoint.rds", 
+                  file = "Outputs/Models/update_changepoint_final.rds", 
                   data = Quota_changes2, iter = 1000, chains = 4)
 
 fixef(mod_change, robust = TRUE, probs = c(0.05, 0.95))
@@ -130,7 +125,7 @@ newdat <- data.frame(length = 2:27)
 change_preds <- add_epred_draws(mod_change, newdata = newdat) %>% 
   group_by(length) %>% median_hdci(.epred, .width = .9)
 
-Quota_changes_fig <- ggplot(Quota_changesv2, aes(length, diff_quotas)) +
+Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   geom_point(alpha = .3, shape = 16, size = 2) +
   #geom_smooth(method = "loess", colour = "black") +
   #geom_point(data = change_stat, aes(length, mean), colour = "darkblue", shape = 8) +
@@ -182,8 +177,9 @@ never_plt <- ggplot(zero_updates_dat, aes(length, n)) +
   ylab("Quotas never updated") +
   theme_minimal(base_size = 12)
 
-## 255/673 quotas longer than a single year never change
+## 240 quotas longer than a single year never change (41 longer than 10 years)
 Quota_changes2 %>% filter(diff_quotas == 0)
+Quota_changes2 %>% filter(diff_quotas == 0 & length > 9)
 
 ## average updated ever 4 years
 Quota_changes2 %>% mutate(freq = diff_quotas/length) %>%
@@ -196,8 +192,8 @@ Quota_changes_sum <- Quota_changes2 %>% mutate(freq = length/diff_quotas) %>%
          Changes_every_2_years = ifelse(freq >= 2, 1, 0))
 
 
-## 84 quotas updated every 10 or more years
-## 242 quotas updated every 5 or more years
+## 86 quotas updated every 10 or more years
+## 239 quotas updated every 5 or more years
 Quota_changes_sum2 <- Quota_changes_sum %>% ungroup() %>%
   summarise(Changes_every_10_years = sum(Changes_every_10_years),
             Changes_every_5_years = sum(Changes_every_5_years),
@@ -214,8 +210,8 @@ Quota_changes_sum %>% filter(length >= 10) %>% ungroup() %>%
             Year10_prop = sum(Changes_every_10_years)/n() *100,
             length = n())
 
-## 79 are set yearly
-Quota_changes2 %>% filter(diff_quotas+1 == length)
+## 64 are set yearly
+check <- Quota_changes2 %>% filter(diff_quotas+1 == length)
 
 #### arrangement ####
 library(ggpubr)
@@ -228,6 +224,16 @@ Quota_change_arrange <- ggarrange(ggarrange(yrly_plt, never_plt, nrow = 2, label
 ggsave(path = "Outputs/Figures", Quota_change_arrange, filename = "Quota_changes_fig.png",  bg = "white",
        device = "png", width = 26, height = 18, units = "cm")
 
+
+#### Quota but no trade ####
+Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>% 
+  group_by(Taxon, Exporter, Source, Purpose) %>% 
+  mutate(ID = cur_group_id()) %>%
+  filter(all(Volume == 0))
+
+check <- Quota_df %>% group_by(Taxon, Exporter, Source, Purpose) %>% tally()
+
+#### Exploring link with trade and updating ####
 
 Quota_traded_years_sum <- Quota_trade_listing %>% 
   filter(Other_term_quotas_in_place == "No") %>%
@@ -249,12 +255,3 @@ ggplot(Quota_traded_years_sum, aes(traded_years, diff_quotas)) +
   coord_cartesian(ylim = c(0, 25))
 
 cor.test(Quota_traded_years_sum$traded_years, Quota_traded_years_sum$diff_quotas)
-
-
-#### Quota but no trade ####
-Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>% 
-  group_by(Taxon, Exporter, Source, Purpose) %>% 
-  mutate(ID = cur_group_id()) %>%
-  filter(all(Volume == 0))
-
-check <- Quota_df %>% group_by(Taxon, Exporter, Source, Purpose) %>% tally()
