@@ -15,9 +15,14 @@ library(cowplot)
 CITES_Parties <- data.table::fread("Data/CITES/CITES_Parties.csv", na.strings = "")
 Quota_clean_raw <- read.csv("Data/CITES/Quotas/Quota_codes_raw_summary.csv")
 Quota_trade_listing <- read.csv("Data/CITES/Quotas/Rept_Quota_trade_listing.csv")
-All_Listed_IUCN <- read.csv("Data/IUCN/ALL_REPT_ASSESSMENTS_series.csv")  
+All_Listed_IUCN <- read.csv("Data/IUCN/ALL_REPT_ASSESSMENTS_series.csv")
+
+## IUCN data
+all_IUCN_series <- read.csv("Data/IUCN/IUCN_trade_threat.csv") %>% select(-X) ## new series all listed sp
+iucnames <- read.csv("Data/IUCN/naming_all_traded.csv") %>% select(-X)
+iucn_time_match <- left_join(iucnames, all_IUCN_series)
+
 Live_rept_trade <- read.csv("Data/CITES/WOEs/Live_Rept_Trade.csv") 
-Trade_thr_species <- read.csv("Data/Challender_2023.csv")
 
 Rept_Listings <- data.table::fread("Data/CITES/CITES_Listings_Rept_07-23.csv") %>%
   rename(Taxon = `Scientific Name`) %>% select(10:26) %>%
@@ -71,6 +76,7 @@ Quota_types_sum <- Quota_clean_raw %>% group_by(Quota_type) %>% tally() %>%
          Quota_label = gsub("Non", "None", Quota_label),
          Tot = sum(n),
          Prop = round(n/Tot *100, 2),
+         Prop2 = format(round(n/Tot *100, 2), nsmall = 2),
          Type = ifelse(Quota_label == "None", "Yes", "No"))
 
 Quota_Term_sum <- Quota_clean_raw %>% group_by(Term) %>% tally() %>%
@@ -103,7 +109,7 @@ Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = Quota_type)) +
   scale_x_discrete(limits = c("Source",
                               "Purpose-Source", "Term-Source",
                               "Term-Source-Purpose")) +
-  geom_text(aes(label = paste0(Prop, "%")), vjust = -.5, fontface = "bold") +
+  geom_text(aes(label = paste0(Prop2, "%")), vjust = -.5, fontface = "bold") +
   scale_fill_manual(values = c( "tan3","chartreuse4", "mediumorchid", "cornflowerblue")) +
   coord_cartesian(ylim = c(0, 6000), expand = FALSE) +
   xlab("Quota specificity") +
@@ -114,18 +120,18 @@ Type_plt <- ggplot(Quota_types_sum, aes(Quota_label, n, fill = Quota_type)) +
 Term_plt <- ggplot(Quota_Term_sum, aes(n, reorder(Term_label, n), fill = Type)) +
   geom_col() +
   geom_text(aes(label = paste0(Prop, "%")), hjust = -.5, fontface = "bold") +
-  coord_cartesian(xlim = c(0, 6500), expand = FALSE) +
-  scale_fill_manual(values = c("black", "grey", "tomato")) +
+  coord_cartesian(xlim = c(0, 12000), expand = FALSE) +
+  scale_fill_manual(values = c("black", "grey", "grey")) +
   xlab("Number of quotas") +
-  ylab("Terms") +
+  ylab("Term") +
   theme_minimal() +
   theme(legend.position = "none")
 
 Source_plt <- ggplot(Quota_Source_sum, aes(n, reorder(Source_label, n), fill = Type)) +
   geom_col() +
   geom_text(aes(label = paste0(Prop, "%")), hjust = -.5, fontface = "bold") +
-  coord_cartesian(xlim = c(0, 6000), expand = FALSE) +
-  scale_fill_manual(values = c("black", "tomato", "grey")) +
+  coord_cartesian(xlim = c(0, 12000), expand = FALSE) +
+  scale_fill_manual(values = c("black", "grey", "grey")) +
   xlab("Number of quotas") +
   ylab("Source") +
   theme_minimal() +
@@ -135,7 +141,7 @@ Purpose_plt <- ggplot(Quota_Purpose_sum, aes(n, reorder(Purpose_label, n), fill 
   geom_col() +
   geom_text(aes(label = paste0(Prop, "%")), hjust = -.5, fontface = "bold") +
   coord_cartesian(xlim = c(0, 12000), expand = FALSE) +
-  scale_fill_manual(values = c("black", "grey", "tomato")) +
+  scale_fill_manual(values = c("black", "grey", "grey")) +
   xlab("Number of quotas") +
   ylab("Purpose") +
   theme_minimal() +
@@ -146,7 +152,7 @@ Summary_plt <- ggarrange(Type_plt, labels = c("A.", "B."),
           ncol = 2, widths = c(1, 0.8), labels = c("B.", "")), ncol = 1, heights = c(1, 1.5))
 
 ggsave(path = "Outputs/Figures", Summary_plt, filename = "Summary_plt.png",  bg = "white",
-       device = "png", width = 20, height = 20, units = "cm")
+       device = "png", width = 23, height = 23, units = "cm")
 
 write.csv(Quota_Purpose_sum, "Outputs/Summary/F1/Quota_Purpose_sum.csv")
 write.csv(Quota_Source_sum, "Outputs/Summary/F1/Quota_Source_sum.csv")
@@ -191,6 +197,8 @@ ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png
 
 Ban_df <- ER_compliance$Ban_df
 Quota_df <- ER_compliance$Quota_df
+
+perc_breaches <- Quota_df %>% group_by(Exporter) %>% summarise(breaches = sum(Volume>Quota), tot = n(), prop = breaches/tot)
 
 nrow(Quota_df) + nrow(Ban_df) ## 2712
 
@@ -294,11 +302,13 @@ Centred_series_quota <- Centred_series %>% filter(State == "bPost-quota-actual")
   group_by(Taxon, Exporter) %>%
   mutate(Vol_cent = Total_volume - Last_noquota_volume,
          vol_sd = Vol_cent/sd(Vol_cent),
-         Year_cent = Year - First_quota_year)
+         Year_cent = Year - First_quota_year) %>%
+  left_join(iucnames, by = c("Taxon")) %>%
+  left_join(all_IUCN_series, by = c("matching_name", "Year"))
 
 ggplot(Centred_series_quota, aes(Year_cent, vol_sd, colour = State)) +
   geom_point() +
-  facet_wrap(~Taxon, scales = "free")
+  facet_wrap(Int_trade_thr_L~Taxon, scales = "free")
 
 
 library(tidybayes)
@@ -307,6 +317,10 @@ library(brms)
 ## sd modelling
 Centred_series_sd <- Centred_series_quota %>% filter(!is.na(vol_sd), !is.infinite(vol_sd)) %>%
   mutate(Quota_breach = ifelse(Total_volume > Quota, "Yes", "No"))
+
+threat_sum2023 <- iucn_time_match %>% filter(Year == 2023) %>%
+  mutate(IUCN_thr = ifelse(IUCN_code %in% c("VU", "EN", "CR"), "Thr", "NonThr")) %>%
+  select(Taxon, matching_name, Int_trade_thr_L, IUCN_thr)
 
 hist(Centred_series_sd$vol_sd)
 
@@ -323,6 +337,7 @@ Pre_Post_Quota_mod <- brm(bf(vol_sd ~ State + Year_cent + State:Year_cent + (1|E
                  file = "Outputs/Models/Pre_Post_Quotasd5.rds",
                  data = Centred_series_sd,
                  iter = 1000, warmup = 500, chains = 4, cores = 4)
+
 
 PP_mod_sum <- Centred_series_sd %>% 
   add_epred_draws(Pre_Post_Quota_mod, re_formula = NULL)
@@ -347,14 +362,14 @@ PP_all_sp_fig1 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
   theme_minimal() +
   theme(legend.position = "bottom")
 
-ggsave(path = "Outputs/SM", PP_all_sp_fig, filename = "PP_all_species.png",  bg = "white",
+ggsave(path = "Outputs/SM", PP_all_sp_fig1, filename = "PP_all_species.png",  bg = "white",
        device = "png", width = 25, height = 30, units = "cm")
 
 PP_all_sp_fig2 <- ggplot(PP_lines_sum, aes(Year_cent, .epred, colour = State,
                                            fill = State, group = ID)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha= .3) +
-  geom_point(aes(y = vol_sd)) +
+  #geom_point(aes(y = vol_sd)) +
   ggforce::facet_wrap_paginate(~Taxon_exp, scales = "free", ncol = 5, nrow = 7, page = 2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
   scale_fill_manual(values = c("grey75","black", "royalblue4"), 
@@ -387,9 +402,15 @@ Fixef_pred_sum <- new_dat %>%
   median_hdci(.epred, .width = .9)
 
 fixef(Pre_Post_Quota_mod, summary = FALSE) %>% as.data.frame() %>%
-  mutate(Quota_actual_contr = StatebPostMquotaMquotas - StatebPostMquotaMactual,
+  mutate(Quota_actual_contr = (Intercept + StatebPostMquotaMquotas) - 
+           (Intercept + StatebPostMquotaMactual),
          pd = (sum(sign(Quota_actual_contr) == sign(median(Quota_actual_contr)))/n()*100)) %>%
   group_by(pd) %>%
+  median_hdci(Quota_actual_contr, .width = .9)
+
+fixef(Pre_Post_Quota_mod, summary = FALSE) %>% as.data.frame() %>%
+  mutate(Quota_actual_contr = ((Intercept + StatebPostMquotaMquotas) - 
+           (Intercept + StatebPostMquotaMactual))/(Intercept + StatebPostMquotaMquotas)) %>%
   median_hdci(Quota_actual_contr, .width = .9)
 
 average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred, 
@@ -535,10 +556,15 @@ quota_summary <- All_sum %>%
                                    "Step and trend change",
                                  Post_quota_absolute == "Uncertain" & 
                                    (Post_quota_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
-                                   "Trend-change only"))
+                                   "Trend-change only")) %>%
+  separate(Taxon, into = c("sp", "exp"), sep = "_", remove = FALSE) %>%
+  left_join(threat_sum2023, by = c("sp" = "Taxon") )
 
-quota_summary2 <- quota_summary %>% group_by(Class,Change_type) %>% tally() %>%
-  mutate(Type = "Quota")
+quota_summary2 <- quota_summary %>% group_by(Class,Change_type, IUCN_thr, Int_trade_thr_L) %>% tally() %>%
+  mutate(Type = "Quota",
+         thr_grp = case_when(IUCN_thr == "Thr" & Int_trade_thr_L == "Yes" ~ "Globally Thr & trade Thr",
+                             IUCN_thr == "Thr" & Int_trade_thr_L == "No" ~ "Globally Thr",
+                             IUCN_thr == "NonThr" & Int_trade_thr_L == "Yes" ~ "Trade Thr"))
 
 Actual_summary <- All_sum %>%
   mutate(Class = case_when(Pre_change_trend == "Uncertain" & 
@@ -606,18 +632,24 @@ Actual_summary <- All_sum %>%
                                    "Step and trend change",
                                  Post_actual_absolute == "Uncertain" & 
                                    (Post_actual_trend != "Uncertain"|Pre_change_trend != "Uncertain") ~
-                                   "Trend-change only"))
+                                   "Trend-change only")) %>%
+  separate(Taxon, into = c("sp", "exp"), sep = "_", remove = FALSE) %>%
+  left_join(threat_sum2023, by = c("sp" = "Taxon") )
 
-Actual_summary2 <- Actual_summary %>% group_by(Class,Change_type) %>% tally() %>%
-  mutate(Type = "Actual")
+Actual_summary2 <- Actual_summary %>% group_by(Class,Change_type, IUCN_thr, Int_trade_thr_L) %>% tally() %>%
+  mutate(Type = "Actual",
+         thr_grp = case_when(IUCN_thr == "Thr" & Int_trade_thr_L == "Yes" ~ "Globally Thr & trade Thr",
+                             IUCN_thr == "Thr" & Int_trade_thr_L == "No" ~ "Globally Thr",
+                             IUCN_thr == "NonThr" & Int_trade_thr_L == "Yes" ~ "Trade Thr"))
 
-All_summary <- rbind(quota_summary2, Actual_summary2)
+All_summary <- rbind(quota_summary2, Actual_summary2) %>% ungroup() %>%
+  select(-c(IUCN_thr, Int_trade_thr_L))
 
 All_summary_exp <- expand.grid(Class = unique(All_summary$Class), Type = unique(All_summary$Type)) %>%
   left_join(distinct(select(All_summary, Change_type, Class))) %>%
   left_join(All_summary) %>%
   rbind(data.frame(Class = c("Step decrease only"), Type = c("Quota", "Actual"),
-                   Change_type = "Step-change only", n = NA)) %>%
+                   Change_type = "Step-change only", n = NA, thr_grp = NA)) %>%
   mutate(n = ifelse(is.na(n), 0, n),
          Change_type = factor(Change_type, 
                               levels = c("Flat", "Step-change only", "Trend-change only",
@@ -637,9 +669,9 @@ All_summary_exp <- expand.grid(Class = unique(All_summary$Class), Type = unique(
                                           "Temporal decrease with elevated plateau",
                                           "Trend shift, increase to decrease, with step decrease",
                                           "Trend shift, increase to decrease, with step increase"))) %>%
-  group_by(Type) %>% arrange(Type, Change_type, Class) %>% 
+  arrange(Type, Change_type, Class) %>% group_by(Type) %>% 
   mutate(plot_order = 1:n(),
-         perc = n/69 *100)
+         perc = n/69 * 100)
 
 
 
@@ -663,31 +695,52 @@ concept_actual_figs <- ggarrange(empty, p_actual$p1, p_actual$p2, p_actual$p3, p
                                  p_actual$p17, p_actual$p18,
                                  ncol = 20, widths = c(0.9, rep(1, 18), 0.2))
 
+tot_summary_exp <- All_summary_exp %>% group_by(Class, Type, Change_type) %>%
+  summarise(n = sum(n), perc = round( sum(perc), 1))
+
+sum(tot_summary_exp$n)
+sum(tot_summary_exp$perc)
+
+sum(All_summary_exp$n)
+sum(All_summary_exp$perc)
+
+## Thr = yellow, thr and trade thr = dark red, trade thr = orange
 Tally_quota <- ggplot(filter(All_summary_exp, Type == "Quota"), 
-                      aes(factor(plot_order), perc)) +
-  geom_col(fill = "dodgerblue") +
+                      aes(Class, perc, fill = thr_grp)) +
+  geom_col() +
+  geom_text(data = filter(tot_summary_exp, Type == "Quota"), aes(label = paste0(perc, "%"), fill = NA), 
+            hjust = 0.5, vjust = -1) +
+  scale_fill_manual(values = c("darkgoldenrod1", "darkred", "darkorange3"), na.value = "dodgerblue") +
   ylab("Percentage of quota series") +
+  coord_cartesian(ylim = c(0, 57), expand = FALSE) +
   theme_classic(base_size = 12) +
-  theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
+        legend.position = "none")
 
 Tally_actual <- ggplot(filter(All_summary_exp, Type == "Actual"), 
-                       aes(factor(plot_order), perc)) +
-  geom_col(fill = "grey") +
+                       aes(Class, perc, fill = thr_grp)) +
+  geom_col() +
+  geom_text(data = filter(tot_summary_exp, Type == "Actual"), aes(label = paste0(perc, "%"), fill = NA), 
+            hjust = 0.5, vjust = -1) +
+  scale_fill_manual(values = c("darkgoldenrod1", "darkred", "darkorange3"), na.value = "grey") +
   ylab("Percentage of quota series") +
+  coord_cartesian(ylim = c(0, 35), expand = FALSE) +
   theme_classic(base_size = 12) +
-  theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+  theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
+        legend.position = "none")
+
 
 labels <- ggplot() +
-  geom_segment(aes(x = 1, xend = 18, y = 1, yend = 1)) +
-  geom_segment(aes(x = 1, xend = 1, y = 1, yend = 1.1)) +
-  geom_segment(aes(x = 2, xend = 2, y = 1, yend = 1.1)) +
-  geom_segment(aes(x = 4, xend = 4, y = 1, yend = 1.1)) +
-  geom_segment(aes(x = 9, xend = 9, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 0.8, xend = 18, y = 1, yend = 1)) +
+  geom_segment(aes(x = 0.8, xend = 0.8, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 1.8, xend = 1.8, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 3.6, xend = 3.6, y = 1, yend = 1.1)) +
+  geom_segment(aes(x = 8.4, xend = 8.4, y = 1, yend = 1.1)) +
   geom_segment(aes(x = 18, xend = 18, y = 1, yend = 1.1)) +
-  annotate(geom = "text", y = 0.9, x = 14, label = "Step and \n trend change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 6.5, label = "Trend change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 3, label = "Step change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 1.5, label = "None", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 13, label = "Step and \n trend change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 6, label = "Trend change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 2.7, label = "Step change", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 1.3, label = "None", size = 4, hjust = 0.5, vjust = 1) +
   coord_cartesian(ylim = c(.25, 1.15), xlim = c(0, 18), expand = FALSE) +
   theme_void() +
   theme(axis.title.y = element_blank())
@@ -699,7 +752,7 @@ concept_arr <- ggarrange(empty,
                          empty,
                          Tally_actual,concept_actual_figs, 
                          labels_arr,  
-                         heights = c(0.5, 5, 1.25, 0.5, 5, 1.25, 2), nrow = 7,
+                         heights = c(0.5, 5, 1.5, 0.5, 5, 1.5, 2), nrow = 7,
                          labels = c("B. Post-quota quota levels", "", "", 
                                     "C. Post-quota traded volumes", "", "", ""),
                          hjust = 0)
@@ -711,9 +764,9 @@ ggsave(path = "Outputs/Figures", PP_quota_plt2, filename = "PP_quota_Horiz.png",
        device = "png", width = 25, height = 25, units = "cm")
 ggsave(path = "Outputs/SM", concept_quota_figs, filename = "Concept_rels.png",  bg = "white",
        device = "png", width = 2.5, height = 25, units = "cm")
-write.csv(All_summary_exp, "Outputs/Summary/F3/Trend_summary.csv")
-write.csv(Actual_summary, "Outputs/Summary/F3/Actual_trend_quotas.csv")
-write.csv(quota_summary, "Outputs/Summary/F3/Quota_trend_quotas.csv")
+write.csv(All_summary_exp, "Outputs/Summary/F3/Trend_summaryR1.csv")
+write.csv(Actual_summary, "Outputs/Summary/F3/Actual_trend_quotasR1.csv")
+write.csv(quota_summary, "Outputs/Summary/F3/Quota_trend_quotasR1.csv")
 
 
 #### PP SOM plots ####
