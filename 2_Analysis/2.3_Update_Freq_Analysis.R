@@ -3,7 +3,6 @@
 ####################################
 
 options(scipen=999)
-.libPaths("C:/Packages")
 source("Functions.R")
 
 library(tidyverse)
@@ -18,16 +17,24 @@ CITES_Parties <- data.table::fread("Data/CITES/CITES_Parties.csv", na.strings = 
 Quota_clean_raw <- read.csv("Data/CITES/Quotas/Quota_codes_raw_summary.csv")
 Quota_trade_listing <- read.csv("Data/CITES/Quotas/Rept_Quota_trade_listing.csv")
 
+## IUCN data
+all_IUCN_series <- read.csv("Data/IUCN/IUCN_trade_threat.csv") %>% select(-X) ## new series all listed sp
+iucnames <- read.csv("Data/IUCN/naming_all_traded.csv") %>% select(-X)
+iucn_match <- left_join(iucnames, all_IUCN_series)%>%
+  mutate(IUCN_thr = ifelse(IUCN_code %in% c("VU", "EN", "CR"), "Thr", "NonThr")) %>%
+  select(Taxon, matching_name, Year, Int_trade_thr_L, IUCN_code)
+
 #### Data prep ####
 
 Quota_changes <- Quota_clean_raw %>% 
+  left_join(iucn_match, by = c("FullName" = "Taxon", "year" = "Year")) %>%
   ## don't need to do that here as its possible to have two seperate quota series
   ## for different terms (only for live checks is it problematic)
   #filter(Other_term_quotas_in_place == "No") %>%
   #filter(Overlapping_quotas == "No") %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type, Overlapping_quotas, year) %>% 
+           Quota_type, Overlapping_quotas, year, IUCN_code, Int_trade_thr_L) %>% 
   summarise(quota = sum(quota)) %>%
   group_by(party, Family, Genus, Order, Rank, FullName, Term, 
            Purpose, Source, unit,
@@ -35,10 +42,15 @@ Quota_changes <- Quota_clean_raw %>%
   mutate(quota_id = cur_group_id()) %>%
   group_by(quota_id, party, Rank, FullName, Term, 
            Purpose, Source, unit,
-           Quota_type) %>%
+           Quota_type, Int_trade_thr_L) %>%
   filter(all(quota > 0)) %>%
   mutate(Change = quota != lag(quota), Change = replace_na(Change, FALSE)) %>%
-  summarise(diff_quotas = sum(Change), length = n())
+  summarise(diff_quotas = sum(Change), length = n(), iucn_changes = length(unique(IUCN_code)))
+#%>% 
+ # left_join(iucn_2023_match, by = c("FullName" = "Taxon")) %>%
+  #mutate(thr_grp = case_when(IUCN_thr == "Thr" & Int_trade_thr_L == "Yes" ~ "Globally Thr & trade Thr",
+   #                          IUCN_thr == "Thr" & Int_trade_thr_L == "No" ~ "Globally Thr",
+    #                         IUCN_thr == "NonThr" & Int_trade_thr_L == "Yes" ~ "Trade Thr"))
 
 Quota_changes_zero <- Quota_clean_raw %>% 
   ## don't need to do that here as its possible to have two seperate quota series
@@ -59,7 +71,9 @@ Quota_changes_zero <- Quota_clean_raw %>%
   filter(any(quota == 0))
 
 ## 673
-Quota_changes2 <- Quota_changes %>% filter(length > 1)
+Quota_changes2 <- Quota_changes %>% filter(length > 1) %>%
+  left_join(iucn_2023_match, by = c("FullName" = "Taxon"))
+
 Quota_changes_zero %>%
   group_by(quota_id, party, Rank, FullName, Term, 
            Purpose, Source, unit,
