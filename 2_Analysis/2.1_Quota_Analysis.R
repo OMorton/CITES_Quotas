@@ -192,6 +192,10 @@ IR_compliance <- compliance_plots(data = Quota_trade_listing, geo_data = Quota_t
 ggsave(path = "Outputs/Figures", ER_compliance$Plot, filename = "Quota_ban_plt.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
+## final 
+ggsave(path = "Outputs/FINAL_FIGURES", ER_compliance$Plot, filename = "Figure1.pdf",  bg = "white",
+       device = "pdf", width = 18, height = 22, units = "cm")
+
 ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
@@ -758,10 +762,14 @@ concept_arr <- ggarrange(empty,
                          hjust = 0)
 
 PP_quota_plt2 <- ggarrange(average_quota_plt,concept_arr, nrow = 2, labels = c("A.", ""),
+                           hjust = 0,
                            heights = c(1, 3))
 
 ggsave(path = "Outputs/Figures", PP_quota_plt2, filename = "PP_quota_Horiz.png",  bg = "white",
        device = "png", width = 25, height = 25, units = "cm")
+## final
+ggsave(path = "Outputs/FINAL_FIGURES", PP_quota_plt2, filename = "Figure2.pdf",  bg = "white",
+       device = "pdf", width = 25, height = 25, units = "cm")
 ggsave(path = "Outputs/SM", concept_quota_figs, filename = "Concept_rels.png",  bg = "white",
        device = "png", width = 2.5, height = 25, units = "cm")
 write.csv(All_summary_exp, "Outputs/Summary/F3/Trend_summaryR1.csv")
