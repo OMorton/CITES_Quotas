@@ -195,7 +195,10 @@ ggsave(path = "Outputs/Figures", ER_compliance$Plot, filename = "Quota_ban_plt.p
 ## final 
 ggsave(path = "Outputs/FINAL_FIGURES", ER_compliance$Plot, filename = "Figure1.pdf",  bg = "white",
        device = "pdf", width = 18, height = 22, units = "cm")
+ggsave(path = "Outputs/FINAL_FIGURES", ER_compliance$Plot, filename = "Figure1.png",  bg = "white",
+       device = "png", width = 18, height = 22, units = "cm")
 
+## IR
 ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png",  bg = "white",
        device = "png", width = 18, height = 22, units = "cm")
 
@@ -426,10 +429,10 @@ average_quota_plt <- ggplot(Fixef_pred_sum, aes(Year_cent, .epred,
   ylab("Volume relative to <br> pre-quota volume (SD scale)") +
   scale_color_manual(values = c("black", "grey", "dodgerblue")) +
   scale_fill_manual(values = c("black", "grey", "dodgerblue")) +
-  annotate(geom = "text", label = "Pre-quota", x = -5, y = 0.6, fontface = "bold", colour = "black") +
-  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =-1, fontface = "bold", colour = "grey") +
-  annotate(geom = "text", label = "Post-quota quota levels", x = 5, y =1.7, fontface = "bold", colour = "dodgerblue") +
-  theme_minimal() +
+  annotate(geom = "text", label = "Pre-quota", x = -5, y = 0.6, fontface = "bold", colour = "black", size = 3) +
+  annotate(geom = "text", label = "Post-quota traded volumes", x = 5, y =-1, fontface = "bold", colour = "grey", size = 3) +
+  annotate(geom = "text", label = "Post-quota quota levels", x = 5, y =1.7, fontface = "bold", colour = "dodgerblue", size = 3) +
+  theme_minimal(base_size = 7.8) +
   theme(axis.title.y = element_markdown(), legend.position = "none")
   
 
@@ -679,8 +682,8 @@ All_summary_exp <- expand.grid(Class = unique(All_summary$Class), Type = unique(
 
 
 
-p_quota <- make_concept(size = 0.5, col = "dodgerblue")
-p_actual <- make_concept(size = 0.5, col = "grey")
+p_quota <- make_concept(size = 0.3, col = "dodgerblue")
+p_actual <- make_concept(size = 0.3, col = "grey")
 
 library(ggpubr)
 
@@ -713,11 +716,11 @@ Tally_quota <- ggplot(filter(All_summary_exp, Type == "Quota"),
                       aes(Class, perc, fill = thr_grp)) +
   geom_col() +
   geom_text(data = filter(tot_summary_exp, Type == "Quota"), aes(label = paste0(perc, "%"), fill = NA), 
-            hjust = 0.5, vjust = -1) +
+            hjust = 0.5, vjust = -1, size = 2.5) +
   scale_fill_manual(values = c("darkgoldenrod1", "darkred", "darkorange3"), na.value = "dodgerblue") +
   ylab("Percentage of quota series") +
   coord_cartesian(ylim = c(0, 57), expand = FALSE) +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 7.8) +
   theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
         legend.position = "none")
 
@@ -725,11 +728,11 @@ Tally_actual <- ggplot(filter(All_summary_exp, Type == "Actual"),
                        aes(Class, perc, fill = thr_grp)) +
   geom_col() +
   geom_text(data = filter(tot_summary_exp, Type == "Actual"), aes(label = paste0(perc, "%"), fill = NA), 
-            hjust = 0.5, vjust = -1) +
+            hjust = 0.5, vjust = -1, size = 2.5) +
   scale_fill_manual(values = c("darkgoldenrod1", "darkred", "darkorange3"), na.value = "grey") +
   ylab("Percentage of quota series") +
   coord_cartesian(ylim = c(0, 35), expand = FALSE) +
-  theme_classic(base_size = 12) +
+  theme_classic(base_size = 7.8) +
   theme(axis.text.x = element_blank(), axis.title.x = element_blank(),
         legend.position = "none")
 
@@ -741,12 +744,12 @@ labels <- ggplot() +
   geom_segment(aes(x = 3.6, xend = 3.6, y = 1, yend = 1.1)) +
   geom_segment(aes(x = 8.4, xend = 8.4, y = 1, yend = 1.1)) +
   geom_segment(aes(x = 18, xend = 18, y = 1, yend = 1.1)) +
-  annotate(geom = "text", y = 0.9, x = 13, label = "Step and \n trend change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 6, label = "Trend change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 2.7, label = "Step change", size = 4, hjust = 0.5, vjust = 1) +
-  annotate(geom = "text", y = 0.9, x = 1.3, label = "None", size = 4, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 13, label = "Step and \n trend change", size = 3, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 6, label = "Trend change", size = 3, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 2.7, label = "Step change", size = 3, hjust = 0.5, vjust = 1) +
+  annotate(geom = "text", y = 0.9, x = 1.3, label = "None", size = 3, hjust = 0.5, vjust = 1) +
   coord_cartesian(ylim = c(.25, 1.15), xlim = c(0, 18), expand = FALSE) +
-  theme_void() +
+  theme_void(base_size = 7.5) +
   theme(axis.title.y = element_blank())
 
 labels_arr <- ggarrange(empty, labels,empty, widths = c(.1, 18,0.1), nrow = 1)
@@ -759,17 +762,21 @@ concept_arr <- ggarrange(empty,
                          heights = c(0.5, 5, 1.5, 0.5, 5, 1.5, 2), nrow = 7,
                          labels = c("B. Post-quota quota levels", "", "", 
                                     "C. Post-quota traded volumes", "", "", ""),
+                         font.label = list(size = 8),
                          hjust = 0)
 
 PP_quota_plt2 <- ggarrange(average_quota_plt,concept_arr, nrow = 2, labels = c("A.", ""),
-                           hjust = 0,
+                           hjust = 0,font.label = list(size = 8),
                            heights = c(1, 3))
 
 ggsave(path = "Outputs/Figures", PP_quota_plt2, filename = "PP_quota_Horiz.png",  bg = "white",
        device = "png", width = 25, height = 25, units = "cm")
 ## final
 ggsave(path = "Outputs/FINAL_FIGURES", PP_quota_plt2, filename = "Figure2.pdf",  bg = "white",
-       device = "pdf", width = 25, height = 25, units = "cm")
+       device = "pdf", width = 17, height = 17, units = "cm", dpi = 600)
+ggsave(path = "Outputs/FINAL_FIGURES", PP_quota_plt2, filename = "Figure2.png",  bg = "white",
+       device = "png", width = 17, height = 17, units = "cm", dpi = 600)
+
 ggsave(path = "Outputs/SM", concept_quota_figs, filename = "Concept_rels.png",  bg = "white",
        device = "png", width = 2.5, height = 25, units = "cm")
 write.csv(All_summary_exp, "Outputs/Summary/F3/Trend_summaryR1.csv")
