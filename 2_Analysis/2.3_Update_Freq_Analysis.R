@@ -66,8 +66,7 @@ Quota_changes_zero <- Quota_clean_raw %>%
   filter(any(quota == 0))
 
 ## 624
-Quota_changes2 <- Quota_changes %>% filter(length > 1) %>%
-  left_join(IUCN_2023, by = c("FullName" = "Taxon"))
+Quota_changes2 <- Quota_changes %>% filter(length > 1)
 
 Quota_changes_zero %>%
   group_by(quota_id, party, Rank, FullName, Term, 
@@ -143,13 +142,13 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   geom_abline(slope = .1, intercept = -1, linetype = "longdash", size = .25, colour = "darkred") +
   coord_cartesian(xlim = c(2, 26)) +
   scale_x_continuous(breaks = c(2, 10, 20)) +
-  annotate(geom = "text", fontface = "bold", label = "Change every year", x = 6, y = 15, hjust = -0.25) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 2nd year", x = 27, y = 12, hjust = 1.25) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 5th year", x = 27, y = 5.4, hjust = 1) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 10th year", x = 27, y = 0.5, hjust = 1) +
+  annotate(geom = "text", fontface = "bold", label = "Change every year", x = 6, y = 15, hjust = -0.25, size = 3) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 2nd year", x = 27, y = 12, hjust = 1.25, size = 3) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 5th year", x = 27, y = 2.6, hjust = 1, size = 3) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 10th year", x = 27, y = 0.5, hjust = 1, size = 3) +
   xlab("Quota series length (years)") +
   ylab("Number of times the quota is updated") +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 9)
 
 
 #### Plotting ####
@@ -159,7 +158,6 @@ zero_updates_dat <- Quota_changes2 %>%
   filter(diff_quotas == 0) %>% group_by(length) %>% tally() %>%
   right_join(length_bb) %>% mutate(n = ifelse(is.na(n), 0, n))
 
-zero_updates_dat %>% filter(length >= 10) %>% reframe(sum(n))
 
 yearly_updates_dat <- Quota_changes2 %>%
   filter(diff_quotas+1 == length) %>% group_by(length) %>% tally() %>%
@@ -169,13 +167,13 @@ yrly_plt <- ggplot(yearly_updates_dat, aes(length, n)) +
   geom_col(fill = "darkblue") +
   xlab("Quota series length (year)") +
   ylab("Quotas updated yearly") +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 9)
 
 never_plt <- ggplot(zero_updates_dat, aes(length, n)) + 
   geom_col(fill = "darkred") +
   xlab("Quota series length (year)") +
   ylab("Quotas never updated") +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 9)
 
 ## 240 quotas longer than a single year never change (41 longer than 10 years)
 Quota_changes2 %>% filter(diff_quotas == 0)
@@ -223,7 +221,10 @@ Quota_change_arrange <- ggarrange(ggarrange(yrly_plt, never_plt, nrow = 2, label
 
 ggsave(path = "Outputs/Figures", Quota_change_arrange, filename = "Quota_changes_fig.png",  bg = "white",
        device = "png", width = 26, height = 18, units = "cm")
-
+ggsave(path = "Outputs/FINAL_FIGURES", Quota_change_arrange, filename = "Figure3.pdf",  bg = "white",
+       device = "pdf", width = 17, height = 11, units = "cm", dpi = 600)
+ggsave(path = "Outputs/FINAL_FIGURES", Quota_change_arrange, filename = "Figure3.png",  bg = "white",
+       device = "png", width = 17, height = 11, units = "cm", dpi = 600)
 
 #### Quota but no trade ####
 Quota_df <- Quota_trade_listing %>% filter(Zero_quota != "Yes", Other_term_quotas_in_place == "No") %>% 
