@@ -194,9 +194,9 @@ ggsave(path = "Outputs/Figures", ER_compliance$Plot, filename = "Quota_ban_plt.p
 
 ## final 
 ggsave(path = "Outputs/FINAL_FIGURES", ER_compliance$Plot, filename = "Figure1.pdf",  bg = "white",
-       device = "pdf", width = 18, height = 22, units = "cm")
+       device = "pdf", width = 17, height = 20, units = "cm", dpi = 600)
 ggsave(path = "Outputs/FINAL_FIGURES", ER_compliance$Plot, filename = "Figure1.png",  bg = "white",
-       device = "png", width = 18, height = 22, units = "cm")
+       device = "png", width = 17, height = 20, units = "cm", dpi = 600)
 
 ## IR
 ggsave(path = "Outputs/SM", IR_compliance$Plot, filename = "Quota_ban_plt_IR.png",  bg = "white",

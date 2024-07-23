@@ -23,7 +23,7 @@ dist.to.df <- function(inDist) {
 
 
 
-#### Add trade data ####
+#### Add trade data and plot compliance ####
 
 compliance_plots <- function(data, geo_data, reporter) {
   
@@ -53,7 +53,7 @@ compliance_plots <- function(data, geo_data, reporter) {
     coord_cartesian(xlim = c(0, 200)) +
     xlab("Number of quotas") +
     ylab("Breached <br> zero quotas") +
-    theme_minimal() +
+    theme_minimal(base_size = 9.5) +
     theme(legend.position = "none", axis.title.y = element_markdown())
   
   Quota_sum_plt <- ggplot(Quota_df_sum, aes(n, Quota_breach,fill = Quota_breach)) + 
@@ -63,7 +63,7 @@ compliance_plots <- function(data, geo_data, reporter) {
     coord_cartesian(xlim = c(0, 3200)) +
     xlab("Number of quotas") +
     ylab("Breached <br> non-zero quotas") +
-    theme_minimal() +
+    theme_minimal(base_size = 9.5) +
     theme(legend.position = "none", axis.title.y = element_markdown())
   
   Ban_map_df <- geo_data %>% filter(Zero_quota == "Yes", Other_term_quotas_in_place == "No") %>%
@@ -83,9 +83,9 @@ compliance_plots <- function(data, geo_data, reporter) {
                         breaks = c(min(Ban_map_df$n), max(Ban_map_df$n)), 
                         low = "white", high = "royalblue4") +
     coord_sf(ylim = c(-50, 90), datum = NA) +
-    theme_classic(base_size = 12) +
+    theme_classic(base_size = 10) +
     theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-          legend.title=element_text(size=10))
+          legend.title=element_text(size=9))
   
   banbreach_map_plt <- ggplot() + 
     geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
@@ -94,9 +94,9 @@ compliance_plots <- function(data, geo_data, reporter) {
                         breaks = c(min(Banbreach_map_df$n), max(Banbreach_map_df$n)),
                         low = "white", high = "tomato") +
     coord_sf(ylim = c(-50, 90), datum = NA) +
-    theme_classic(base_size = 12) +
+    theme_classic(base_size = 10) +
     theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-          legend.title=element_text(size=10))
+          legend.title=element_text(size=9))
   
   quota_map_plt <- ggplot() + 
     geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
@@ -105,9 +105,9 @@ compliance_plots <- function(data, geo_data, reporter) {
                         breaks = c(min(Quota_map_df$n), max(Quota_map_df$n)), 
                         low = "white", high = "royalblue4") +
     coord_sf(ylim = c(-50, 90), datum = NA) +
-    theme_classic(base_size = 12) +
+    theme_classic(base_size = 10) +
     theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-          legend.title=element_text(size=10))
+          legend.title=element_text(size=9))
   
   quotabreach_map_plt <- ggplot() + 
     geom_sf(data = Countries, aes(geometry = geometry), colour = NA) +
@@ -116,9 +116,9 @@ compliance_plots <- function(data, geo_data, reporter) {
                         breaks = c(min(Quotabreach_map_df$n), max(Quotabreach_map_df$n)),
                         low = "white", high = "tomato") +
     coord_sf(ylim = c(-50, 90), datum = NA) +
-    theme_classic(base_size = 12) +
+    theme_classic(base_size = 10) +
     theme(panel.grid = element_blank(), legend.position = "bottom", legend.key.height = unit(.2, "cm"),
-          legend.title=element_text(size=10))
+          legend.title=element_text(size=9))
   
   ## The really high quotas for ptyas mucosus are likely because of odd use of term codes
   ## in quotas. E.g. quotas are termed specifically for live individuals and skins are quota'd
@@ -138,7 +138,7 @@ compliance_plots <- function(data, geo_data, reporter) {
     scale_colour_manual(values = c("black", "tomato", "royalblue4")) +
     xlab("% of quota") +
     ylab("Number of quotas") +
-    theme_minimal() +
+    theme_minimal(base_size = 10) +
     coord_cartesian(xlim = c(0, 1050)) +
     theme(legend.position = "none", axis.title = element_blank(), 
           panel.background = element_rect(fill = "white", colour = "white"), 
@@ -156,7 +156,7 @@ compliance_plots <- function(data, geo_data, reporter) {
     scale_fill_manual(values = c("black", "tomato", "royalblue4")) +
     scale_colour_manual(values = c("black", "tomato", "royalblue4")) +  xlab("% of quota used") +
     ylab("Number of quotas") +
-    theme_minimal() +
+    theme_minimal(base_size = 10) +
     theme(legend.position = "none")
   
   quota_arrange <- ggdraw() +
@@ -200,7 +200,7 @@ p1 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 5, yend = 5), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("1") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
@@ -210,7 +210,7 @@ p2 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 10, yend = 10), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("2") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
@@ -220,7 +220,7 @@ p3 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 1, yend = 1), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("3") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
@@ -230,8 +230,8 @@ p8 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 3, yend = 3), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
-  xlab("4") +
+  theme_classic(base_size = 8) +
+  xlab("8") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
 # Increases to plateau
@@ -240,7 +240,7 @@ p5 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 7, yend = 7), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("5") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Decreasing from plateau
@@ -249,8 +249,8 @@ p7 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 7, yend = 3), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
-  xlab("6") +
+  theme_classic(base_size = 8) +
+  xlab("7") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # increasing from plateau
 p4 <- ggplot() +
@@ -258,8 +258,8 @@ p4 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 3, yend = 7), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
-  xlab("7") +
+  theme_classic(base_size = 8) +
+  xlab("4") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # trend shift
 p6 <- ggplot() +
@@ -267,8 +267,8 @@ p6 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 7, yend = 3), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
-  xlab("8") +
+  theme_classic(base_size = 8) +
+  xlab("6") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Continuous temporal decrease, step increase
 p9 <- ggplot() +
@@ -276,7 +276,7 @@ p9 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 7, yend = 4), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("9") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Continuous temporal increase, step decrease
@@ -285,7 +285,7 @@ p10 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 3, yend = 6), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("10") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Continuous temporal increase, step increase
@@ -294,7 +294,7 @@ p11 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 6, yend = 9), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("11") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 #Increases to elevated plateau
@@ -303,7 +303,7 @@ p12 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 6, yend = 6), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("12") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Increases to reduced plateau
@@ -312,7 +312,7 @@ p13 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 3, yend = 3), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("13") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Post-quota temporal and step increase
@@ -321,7 +321,7 @@ p14 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 6, yend = 9), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("14") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Step increase, subsequent decline
@@ -330,7 +330,7 @@ p15 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 6, yend = 3), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("15") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Temporal decrease with elevated plateau
@@ -339,7 +339,7 @@ p16 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 6, yend = 6), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("16") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 # Trend shift, increase to decrease, with step decrease
@@ -348,7 +348,7 @@ p17 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 4, yend = 1), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("17") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
@@ -358,7 +358,7 @@ p18 <- ggplot() +
   geom_segment(aes(x = 5, xend = 10, y = 7, yend = 4), colour = col, size = size) +
   geom_vline(xintercept = 5, linetype = "dashed", size = size) +
   coord_cartesian(xlim = c(0, 10), ylim = c(0, 10)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   xlab("18") +
   theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.y = element_blank())
 
