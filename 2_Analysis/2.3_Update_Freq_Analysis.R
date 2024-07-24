@@ -125,12 +125,12 @@ change_preds <- add_epred_draws(mod_change, newdata = newdat) %>%
   group_by(length) %>% median_hdci(.epred, .width = .9)
 
 Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
-  geom_point(alpha = .3, shape = 16, size = 2) +
+  geom_point(alpha = .3, shape = 16, size = 1) +
   #geom_smooth(method = "loess", colour = "black") +
   #geom_point(data = change_stat, aes(length, mean), colour = "darkblue", shape = 8) +
-  geom_line(data = change_preds, aes(length, .epred), colour = "darkblue", size =1) +
+  geom_line(data = change_preds, aes(length, .epred), colour = "darkblue", size = 0.7) +
   geom_ribbon(data = change_preds, aes(length, ymin = .lower, ymax = .upper, y = .epred), fill = "darkblue", alpha = .2) +
-  geom_point(data = change_sum, aes(x = change_Intercept, y = 5.5), colour = "darkblue", size = 5, shape = 18) +
+  geom_point(data = change_sum, aes(x = change_Intercept, y = 5.5), colour = "darkblue", size = 3, shape = 18) +
   geom_errorbarh(data = change_sum, aes(x = change_Intercept, xmin = .lower, xmax = .upper , y = 5.5), 
                  colour = "darkblue", height = 0, size = 1) +
   #geom_line(data = change_stat, aes(length, mean), colour = "darkblue") +
@@ -142,13 +142,13 @@ Quota_changes_fig <- ggplot(Quota_changes2, aes(length, diff_quotas)) +
   geom_abline(slope = .1, intercept = -1, linetype = "longdash", size = .25, colour = "darkred") +
   coord_cartesian(xlim = c(2, 26)) +
   scale_x_continuous(breaks = c(2, 10, 20)) +
-  annotate(geom = "text", fontface = "bold", label = "Change every year", x = 6, y = 15, hjust = -0.25, size = 3) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 2nd year", x = 27, y = 12, hjust = 1.25, size = 3) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 5th year", x = 27, y = 2.6, hjust = 1, size = 3) +
-  annotate(geom = "text", fontface = "bold", label = "Change every 10th year", x = 27, y = 0.5, hjust = 1, size = 3) +
+  annotate(geom = "text", fontface = "bold", label = "Change every year", x = 6, y = 15, hjust = -0.25, size = 2.7) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 2nd year", x = 26.5, y = 11.5, hjust = 1.25, size = 2.7) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 5th year", x = 27, y = 2.6, hjust = 1, size = 2.7) +
+  annotate(geom = "text", fontface = "bold", label = "Change every 10th year", x = 27, y = 0.5, hjust = 1, size = 2.7) +
   xlab("Quota series length (years)") +
   ylab("Number of times the quota is updated") +
-  theme_minimal(base_size = 9)
+  theme_minimal(base_size = 8)
 
 
 #### Plotting ####
@@ -167,13 +167,13 @@ yrly_plt <- ggplot(yearly_updates_dat, aes(length, n)) +
   geom_col(fill = "darkblue") +
   xlab("Quota series length (year)") +
   ylab("Quotas updated yearly") +
-  theme_minimal(base_size = 9)
+  theme_minimal(base_size = 8)
 
 never_plt <- ggplot(zero_updates_dat, aes(length, n)) + 
   geom_col(fill = "darkred") +
   xlab("Quota series length (year)") +
   ylab("Quotas never updated") +
-  theme_minimal(base_size = 9)
+  theme_minimal(base_size = 8)
 
 ## 240 quotas longer than a single year never change (41 longer than 10 years)
 Quota_changes2 %>% filter(diff_quotas == 0)
@@ -214,9 +214,10 @@ check <- Quota_changes2 %>% filter(diff_quotas+1 == length)
 #### arrangement ####
 library(ggpubr)
 
-Quota_change_arrange <- ggarrange(ggarrange(yrly_plt, never_plt, nrow = 2, labels = c("A.", "B.")), 
+Quota_change_arrange <- ggarrange(ggarrange(yrly_plt, never_plt, nrow = 2, labels = c("A.", "B."),
+                                            font.label = list(size = 9)), 
                                   Quota_changes_fig, 
-                                  ncol = 2,
+                                  ncol = 2, font.label = list(size = 9),
                                   labels = c("", "C."), widths = c(1, 1.75))
 
 ggsave(path = "Outputs/Figures", Quota_change_arrange, filename = "Quota_changes_fig.png",  bg = "white",

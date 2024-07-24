@@ -165,9 +165,9 @@ compliance_plots <- function(data, geo_data, reporter) {
   
   Quota_ban_arrange <- ggarrange(ggarrange(ban_map_plt, quota_map_plt, banbreach_map_plt, quotabreach_map_plt,
                                            Ban_sum_plt, Quota_sum_plt,  nrow = 3, ncol = 2,
-                                           labels = c("A.", "B.", "C.", "D.", "E.", "F."), label.x = -0.01,
+                                           labels = c("A.", "B.", "C.", "D.", "E.", "F."), label.x = -0.01, vjust = 1,
                                            heights = c(1, 1, 0.7)),
-                                 quota_arrange, ncol = 1, labels = c("", "G."), heights = c(1.6, 1))
+                                 quota_arrange, ncol = 1, labels = c("", "G."), heights = c(1.6, 1),label.x = -0.01)
   
   return(list("Plot" = Quota_ban_arrange, "Ban_df" = Ban_df, "Quota_df" = Quota_df,
               "Quota_map_df" = Quota_map_df, "Quotabreach_map_df" = Quotabreach_map_df, 

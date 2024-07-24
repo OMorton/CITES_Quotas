@@ -40,7 +40,7 @@ Int_line_plt <- ggplot(time_sum_int, aes(Year)) +
   geom_line(aes(y = vol/2000), colour = "darkred", alpha = .5, linetype = "dashed", size = .5) +
   scale_y_continuous(name = "Richness", 
                      sec.axis = sec_axis(~.*2000, name="Volume")) +
-  theme_minimal(base_size = 8)
+  theme_minimal(base_size = 7)
 
 Thr_line_plt <- ggplot(time_sum_thr, aes(Year)) +
   geom_line(aes(y = n), colour = "darkorange", size = 1) +
@@ -48,14 +48,14 @@ Thr_line_plt <- ggplot(time_sum_thr, aes(Year)) +
   scale_y_continuous(name = "Richness", 
                      sec.axis = sec_axis(~.*2000, name="Volume")) +
   coord_cartesian(ylim = c(0, 35)) +
-  theme_minimal(base_size = 8)
+  theme_minimal(base_size = 7)
 
 DD_line_plt <- ggplot(time_sum_NE, aes(Year)) +
   geom_line(aes(y = n), colour = "darkblue", size = 1) +
   geom_line(aes(y = vol/2000), colour = "darkblue", alpha = .5, linetype = "dashed", size = .5) +
   scale_y_continuous(name = "Richness", 
                      sec.axis = sec_axis(~.*2000, name="Volume")) +
-  theme_minimal(base_size = 8)
+  theme_minimal(base_size = 7)
 
 
 library(rnaturalearth)
@@ -106,7 +106,7 @@ DD_hist_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "skyblue", high = "darkblue", na.value="grey90",
                    limits = c(1, 80)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -115,7 +115,7 @@ DD_rec_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "skyblue", high = "darkblue", na.value="grey90",
                    limits = c(1, 80)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -125,7 +125,7 @@ Thr_hist_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "lightgoldenrod1", high = "darkorange", na.value="grey90",
                    limits = c(1, 66)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -134,7 +134,7 @@ Thr_rec_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "lightgoldenrod1", high = "darkorange", na.value="grey90",
                    limits = c(1, 66)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -144,7 +144,7 @@ Int_hist_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "lightgoldenrod1", high = "darkred", na.value="grey90",
                    limits = c(1, 42)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -153,7 +153,7 @@ Int_rec_plt <- ggplot() +
   coord_sf(ylim = c(-50, 90), datum = NA) +
   scale_fill_steps(low = "lightgoldenrod1", high = "darkred", na.value="grey90",
                    limits = c(1, 42)) +
-  theme_classic(base_size = 10) +
+  theme_classic(base_size = 9) +
   theme(panel.grid = element_blank(), legend.position = "right", legend.title = element_blank(),
         legend.key.size = unit(0.4, "cm"))
 
@@ -163,17 +163,17 @@ empty <- ggplot() + theme_void()
 
 coverage_plt_alt <- ggarrange(
   ggarrange(DD_line_plt, DD_hist_plt, DD_rec_plt, nrow = 1, common.legend = TRUE, legend = "right",
-            labels = c("A.", "B.", "C.")),
+            labels = c("A.", "B.", "C."), font.label = list(size = 8)),
   ggarrange(Thr_line_plt, Thr_hist_plt, Thr_rec_plt, nrow = 1, common.legend = TRUE, legend = "right",
-            labels = c("D.", "E.", "F.")),
+            labels = c("D.", "E.", "F."), font.label = list(size = 8)),
   ggarrange(Int_line_plt, Int_hist_plt, Int_rec_plt, nrow = 1, common.legend = TRUE, legend = "right",
-            labels = c("G.", "H.", "I.")),
+            labels = c("G.", "H.", "I."), font.label = list(size = 8)),
   nrow = 3)
 
 coverage_plt_alt2 <- coverage_plt_alt + 
-  annotation_custom(text_grob("Historical (1997 - 2015)", face = "bold", size= 9, hjust = 0), 
+  annotation_custom(text_grob("Historical (1997 - 2015)", face = "bold", size= 8, hjust = 0), 
                     xmin = 0.37, xmax = 0.37, ymin = 0.97, ymax = 0.97) +
-  annotation_custom(text_grob("Recent (2016 - 2021)", hjust = 0,face = "bold", size= 9), 
+  annotation_custom(text_grob("Recent (2016 - 2021)", hjust = 0,face = "bold", size= 8), 
                     xmin = 0.68, xmax = 0.68, ymin = 0.97, ymax = 0.97) +
   annotation_custom(text_grob("80 exporters, 248 taxa", hjust = 0,face = "italic", size= 7), 
                     xmin = 0.37, xmax = 0.37, ymin = 0.67, ymax = 0.67) +
