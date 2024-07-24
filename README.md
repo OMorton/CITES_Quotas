@@ -16,11 +16,12 @@ threat from international wildlife trade.
 
 #### 2. Analysis
 
-***2.1_Quota_Analysis.R*** Main analysis for Figures 1, 2 and 3 presented in the main paper. Also produces all figures for these sections.
+***2.1_Quota_Analysis.R*** Main analysis for Figures 1 and 2 presented in the main paper. Also produces the figures and
+supplemntary outputs for these sections.
 
-***2.3_Update_Freq_Analysis.R*** For the main analysis presented in Figure 4. Assesses the rate of updating for quota series using custom temporal change point models written in *brms*.
+***2.3_Update_Freq_Analysis.R*** For the main analysis presented in Figure 3. Assesses the rate of updating for quota series using custom temporal change point models written in *brms*.
 
-***2.4_Quota_coverage_gaps.R*** Uses the output of script 1.3 to map the historic and current gaps in quota coverage. 
+***2.4_Quota_coverage_gaps.R*** Uses the output of script 1.3 to map the historic and current gaps in quota coverage. Produces Figure 4.
 
 ***Functions.R*** Contains a number of convenience functions written to streamline plotting.
 
